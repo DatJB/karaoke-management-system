@@ -50,6 +50,6 @@ public class AuthServiceImpl implements AuthService {
                 employeeId
         );
 
-        return Map.of("token", token, "role", acc.getRole().name(), "name", acc.getUsername());
+        return Map.of("token", token, "role", acc.getRole().name(), "name", acc.getEmployee().getName());
     }
 }
