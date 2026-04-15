@@ -1,0 +1,92 @@
+Hãy viết code bằng:
+- React (functional components + hooks)
+- JavaScript (ES6+)
+- TailwindCSS để styling
+
+Yêu cầu:
+- Code sạch, dễ đọc, chia component hợp lý
+- Responsive tốt (mobile + desktop)
+- UI hiện đại, tối giản
+
+Đề tài: Web quản lý nhà hàng Karaoke (quản lý nội bộ)
+có 4 role:
+- ADMIN
+- MANAGER
+- STAFF (nhân viên phục vụ)
+- RECEPTIONIST
+
+với các chức năng:
+
+1. Receptionist (Lễ tân)
+
+Phụ trách tiếp khách trực tiếp, quản lý toàn bộ luồng từ khi khách đến đến khi thanh toán.
+
+**Khách hàng**
+- Tạo mới khách hàng (nhập tên, số điện thoại, thông tin cơ bản)
+- Tìm kiếm khách hàng theo tên hoặc số điện thoại
+- Xem lịch sử booking của khách
+
+**Booking & Phòng**
+- Tạo booking mới, chọn phòng và khách hàng
+- Check in khách: cập nhật giờ thực tế, chuyển trạng thái phòng sang OCCUPIED
+- Check out khách: cập nhật giờ ra, chuyển phòng về AVAILABLE
+- Huỷ booking khi khách không đến
+- Xem trạng thái tất cả phòng (đang trống, đang dùng, bảo trì, đặt trước)
+
+**Hóa đơn & Thanh toán**
+- Tạo invoice khi checkout
+- Thêm sản phẩm / đồ uống vào invoice
+- Thu tiền và đánh dấu hóa đơn PAID
+
+ 2. Staff (Nhân viên phục vụ)
+
+Phục vụ trực tiếp trong phòng karaoke, chỉ thao tác trên các booking được phân công.
+
+**Booking được phân công**
+- Xem danh sách booking mà mình được gán vào phục vụ
+- Xem thông tin phòng, giờ check in / check out dự kiến
+
+**Phục vụ**
+- Xem danh sách sản phẩm (đồ uống, đồ ăn)
+- Thêm order sản phẩm vào phòng đang phục vụ
+
+**Cá nhân**
+- Xem lịch ca làm việc của bản thân
+- Xem thông tin lương, thưởng, phạt của bản thân
+
+3. Manager (Quản lý)
+
+Giám sát toàn bộ vận hành, quản lý nhân sự và báo cáo. Không tạo/xoá tài khoản hệ thống.
+
+**Nhân viên**
+- Xem danh sách toàn bộ nhân viên
+- Phân ca làm việc cho nhân viên
+- Tạo thưởng và phạt cho nhân viên
+- Duyệt và xuất bảng lương theo kỳ
+
+**Vận hành**
+- Xem tất cả booking (mọi trạng thái)
+- Xem tất cả hóa đơn
+- Áp dụng giảm giá trên hóa đơn
+- Quản lý sản phẩm: thêm, sửa, xoá, cập nhật tồn kho
+
+**Báo cáo**
+- Xem báo cáo doanh thu theo ngày / tháng / phòng
+- Xuất báo cáo tổng hợp
+
+ 4. Admin (Quản trị hệ thống)
+
+Toàn quyền hệ thống. Bao gồm tất cả quyền của Manager.
+
+**Tài khoản & Phân quyền**
+- Tạo, sửa, khoá / mở tài khoản nhân viên
+- Phân quyền role cho từng tài khoản
+
+**Cấu hình hệ thống**
+- Cấu hình giá phòng theo ngày trong tuần và khung giờ
+- Cấu hình giá đặc biệt cho ngày lễ / sự kiện
+- Thêm, sửa, xoá thông tin phòng
+
+**Dữ liệu**
+- Toàn quyền xem, sửa, xoá mọi dữ liệu trong hệ thống
+- Xem và xuất mọi loại báo cáo
