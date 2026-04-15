@@ -21,54 +21,69 @@ import Accounts from './pages/Accounts'
 import RoomPricing from './pages/RoomPricing'
 import Profile from './pages/Profile'
 
+const RequireRole = ({ allowedRoles, children }) => {
+  const { user } = useAuth();
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   const { user } = useAuth();
 
+  const ADMIN_ONLY = ['ADMIN'];
+  const MANAGERS = ['ADMIN', 'MANAGER'];
+  const PERSONAL_ONLY = ['STAFF', 'RECEPTIONIST'];
+  const NO_STAFF = ['ADMIN', 'MANAGER', 'RECEPTIONIST'];
+  const NO_RECEPTIONIST = ['ADMIN', 'MANAGER', 'STAFF'];
+  const ALL_ROLES = ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'STAFF'];
+
+  const getHomeRoute = (role) => {
+    if (MANAGERS.includes(role)) return "/dashboard";
+    if (role === 'RECEPTIONIST' || role === 'STAFF') return "/rooms";
+    return "/login";
+  };
+
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={!user ? <Login /> : <Navigate to="/" />}
-      />
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
 
-      <Route
-        element={
-          user ? <DashboardLayout /> : <Navigate to="/login" />
-        }
-      >
+      <Route element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
 
-        <Route
-          path="/"
-          element={
-            <Navigate
-              to={
-                user?.role === "ADMIN" || user?.role === "MANAGER"
-                  ? "/dashboard"
-                  : "/rooms"
-              }
-            />
-          }
-        />
+        <Route path="/" element={<Navigate to={getHomeRoute(user?.role)} />} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/rooms" element={<RoomMap />} />
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/invoices" element={<Invoices />} />
-        <Route path="/employees" element={<Employees />} />
-        <Route path="/ai-feedback" element={<AIFeedback />} />
-        <Route path="/payroll" element={<Payroll />} />
-        <Route path="/payroll-list" element={<PayrollList />} />
-        <Route path="/my-payroll" element={<MyPayroll />} />
-        <Route path="/my-bonus-penalty" element={<MyBonusPenalty />} />
-        <Route path="/bonus-penalty" element={<BonusPenaltyManagement />} />
-        <Route path="/shifts" element={<Shifts />} />
-        <Route path="/staff-assignment" element={<StaffAssignment />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/accounts" element={<Accounts />} />
-        <Route path="/settings" element={<RoomPricing />} />
-        <Route path="/profile" element={<Profile />} />
+        {/* ADMIN ONLY */}
+        <Route element={<RequireRole allowedRoles={ADMIN_ONLY}><RoomPricing /></RequireRole>} path="/settings" />
 
-        {/* fallback */}
+        {/* ADMIN, MANAGER */}
+        <Route element={<RequireRole allowedRoles={MANAGERS}><Dashboard /></RequireRole>} path="/dashboard" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><Employees /></RequireRole>} path="/employees" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><AIFeedback /></RequireRole>} path="/ai-feedback" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><Payroll /></RequireRole>} path="/payroll" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><PayrollList /></RequireRole>} path="/payroll-list" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><BonusPenaltyManagement /></RequireRole>} path="/bonus-penalty" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><StaffAssignment /></RequireRole>} path="/staff-assignment" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><Accounts /></RequireRole>} path="/accounts" />
+
+        {/* ADMIN, MANAGER, RECEPTIONIST */}
+        <Route element={<RequireRole allowedRoles={NO_STAFF}><Customers /></RequireRole>} path="/customers" />
+        <Route element={<RequireRole allowedRoles={NO_STAFF}><Invoices /></RequireRole>} path="/invoices" />
+
+        {/* ADMIN, MANAGER, STAFF */}
+        <Route element={<RequireRole allowedRoles={NO_RECEPTIONIST}><Products /></RequireRole>} path="/products" />
+
+        {/* STAFF, RECEPTIONIST */}
+        <Route element={<RequireRole allowedRoles={PERSONAL_ONLY}><MyPayroll /></RequireRole>} path="/my-payroll" />
+        <Route element={<RequireRole allowedRoles={PERSONAL_ONLY}><MyBonusPenalty /></RequireRole>} path="/my-bonus-penalty" />
+
+        {/* ALL ROLES */}
+        <Route element={<RequireRole allowedRoles={ALL_ROLES}><RoomMap /></RequireRole>} path="/rooms" />
+        <Route element={<RequireRole allowedRoles={ALL_ROLES}><Shifts /></RequireRole>} path="/shifts" />
+        <Route element={<RequireRole allowedRoles={ALL_ROLES}><Profile /></RequireRole>} path="/profile" />
+
         <Route path="*" element={<Navigate to="/" />} />
 
       </Route>
