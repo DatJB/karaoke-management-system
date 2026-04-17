@@ -114,6 +114,10 @@ CREATE TABLE booking (
                          status ENUM('BOOKED','CHECKED_IN','CHECKED_OUT','CANCELLED') DEFAULT 'BOOKED',
                          note          VARCHAR(255),
 
+                         created_at             DATETIME DEFAULT CURRENT_TIMESTAMP,
+                         reservation_time       DATETIME,
+                         expected_checkout_time DATETIME,
+
                          FOREIGN KEY (customer_id) REFERENCES customer(id)
 );
 
