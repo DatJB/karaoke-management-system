@@ -1,13 +1,18 @@
 package com.karaoke.backend.controller;
 
 import com.karaoke.backend.dto.request.CustomerRequest;
+import com.karaoke.backend.dto.response.BookingResponse;
 import com.karaoke.backend.dto.response.CustomerResponse;
 import com.karaoke.backend.dto.response.PageResponse;
+import com.karaoke.backend.service.BookingService;
 import com.karaoke.backend.service.CustomerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/customers")
@@ -15,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class CustomerController
 {
     private final CustomerService customerService;
+    private final BookingService bookingService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
@@ -50,5 +56,19 @@ public class CustomerController
     {
         customerService.deleteCustomer(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/bookings")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
+    public ResponseEntity<PageResponse<BookingResponse>> getCustomerBookings(
+            @PathVariable Integer id,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+        return ResponseEntity.ok(bookingService.getCustomerBookings(id, date, page, size));
     }
 }

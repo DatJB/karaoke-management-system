@@ -46,6 +46,6 @@ public class BookingRoom {
     private List<InvoiceItem> invoiceItems;
 
     public enum BookingRoomStatus {
-        PLAYING, DONE, CANCELLED
+        RESERVED, PLAYING, DONE, CANCELLED
     }
 }

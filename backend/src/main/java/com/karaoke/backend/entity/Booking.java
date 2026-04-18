@@ -2,7 +2,9 @@ package com.karaoke.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -27,6 +29,16 @@ public class Booking {
 
     @Column(length = 255)
     private String note;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "reservation_time")
+    private LocalDateTime reservationTime;
+
+    @Column(name = "expected_checkout_time")
+    private LocalDateTime expectedCheckoutTime;
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingRoom> bookingRooms;
