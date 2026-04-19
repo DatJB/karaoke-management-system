@@ -1,0 +1,36 @@
+$kind: http-request
+name: Employees
+url: localhost:8081/api/v1/employees
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"code\": \"NV013\",\r
+
+    \    \"name\": \"Nguyen Van An\",\r
+
+    \    \"phone\": \"0901234567\",\r
+
+    \    \"baseSalary\": 5000000,\r
+
+    \    \"salaryPerHour\": 35000,\r
+
+    \    \"status\": \"AVAILABLE\",\r
+
+    \    \"avatarUrl\": \"https://example.com/avatar-an.jpg\",\r
+
+    \    \"username\": \"nguyenvanan\",\r
+
+    \    \"password\": \"123456\",\r
+
+    \    \"role\": \"STAFF\",\r
+
+    \    \"accountStatus\": \"ACTIVE\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYwMDAyNywiZXhwIjoxNzc2Njg2NDI3fQ.WF0PPaq7p7sYWxyfiEpep0LNi0frbse-Hao7eVZYvFw
+order: 512587853738541

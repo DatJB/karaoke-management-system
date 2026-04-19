@@ -1,0 +1,20 @@
+$kind: http-request
+name: Shifts/{id}
+url: localhost:8081/api/v1/shifts/6
+method: PUT
+body:
+  type: json
+  content: "{\r
+
+    \  \"name\": \"Ca chiều\",\r
+
+    \  \"startTime\": \"14:00:00\",\r
+
+    \  \"endTime\": \"20:00:00\"\r
+
+    }\r\n"
+auth:
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYxMDUyOCwiZXhwIjoxNzc2Njk2OTI4fQ.xb0GgWwNq91HMgqk8mMXl_K6KM9zyrCUYWCcee61bEI
+  type: bearer
+order: 862

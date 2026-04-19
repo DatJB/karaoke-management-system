@@ -1,0 +1,16 @@
+$kind: http-request
+name: Accounts/{id}
+url: localhost:8081/api/v1/accounts/8/status
+method: PATCH
+body:
+  type: json
+  content: "{\r
+
+    \  \"status\": \"INACTIVE\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYxMDUyOCwiZXhwIjoxNzc2Njk2OTI4fQ.xb0GgWwNq91HMgqk8mMXl_K6KM9zyrCUYWCcee61bEI
+order: 1616271203587739

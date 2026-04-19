@@ -1,0 +1,168 @@
+package com.karaoke.backend.service.impl;
+
+import com.karaoke.backend.dto.request.CreateEmployeeRequest;
+import com.karaoke.backend.dto.request.UpdateEmployeeRequest;
+import com.karaoke.backend.dto.response.EmployeeResponse;
+import com.karaoke.backend.dto.response.PageResponse;
+import com.karaoke.backend.entity.Account;
+import com.karaoke.backend.entity.Employee;
+import com.karaoke.backend.exception.ResourceNotFoundException;
+import com.karaoke.backend.repository.AccountRepository;
+import com.karaoke.backend.repository.EmployeeRepository;
+import com.karaoke.backend.service.EmployeeService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+
+@Service
+@RequiredArgsConstructor
+public class EmployeeServiceImpl implements EmployeeService
+{
+    private final EmployeeRepository employeeRepository;
+    private final AccountRepository accountRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public PageResponse<EmployeeResponse> getEmployees(int page, int size, String search)
+    {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Page<EmployeeResponse> employeePage = employeeRepository.search(search, pageable)
+                .map(this::toResponse);
+
+        return PageResponse.from(employeePage);
+    }
+
+    @Override
+    @Transactional
+    public EmployeeResponse createEmployee(CreateEmployeeRequest request)
+    {
+        validateEmployeeCode(request.getCode(), null);
+        validateUsername(request.getUsername(), null);
+
+        Employee employee = Employee.builder()
+                .code(request.getCode())
+                .name(request.getName())
+                .phone(request.getPhone())
+                .baseSalary(defaultIfNull(request.getBaseSalary()))
+                .salaryPerHour(request.getSalaryPerHour())
+                .status(request.getStatus() == null ? Employee.EmployeeStatus.AVAILABLE : request.getStatus())
+                .avatarUrl(request.getAvatarUrl())
+                .build();
+        employeeRepository.save(employee);
+
+        Account account = Account.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(request.getRole())
+                .status(request.getAccountStatus() == null ? Account.AccountStatus.ACTIVE : request.getAccountStatus())
+                .employee(employee)
+                .build();
+        accountRepository.save(account);
+
+        employee.setAccount(account);
+        return toResponse(employee);
+    }
+
+    @Override
+    @Transactional
+    public EmployeeResponse updateEmployee(Integer id, UpdateEmployeeRequest request)
+    {
+        Employee employee = getEmployee(id);
+        validateEmployeeCode(request.getCode(), id);
+
+        employee.setCode(request.getCode());
+        employee.setName(request.getName());
+        employee.setPhone(request.getPhone());
+        employee.setBaseSalary(defaultIfNull(request.getBaseSalary()));
+        employee.setSalaryPerHour(request.getSalaryPerHour());
+        employee.setStatus(request.getStatus() == null ? employee.getStatus() : request.getStatus());
+        employee.setAvatarUrl(request.getAvatarUrl());
+
+        return toResponse(employeeRepository.save(employee));
+    }
+
+    @Override
+    @Transactional
+    public void deleteEmployee(Integer id)
+    {
+        Employee employee = getEmployee(id);
+
+        if (employee.getAccount() != null)
+        {
+            accountRepository.delete(employee.getAccount());
+        }
+
+        employeeRepository.delete(employee);
+    }
+
+    private Employee getEmployee(Integer id)
+    {
+        return employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nhan vien voi id = " + id));
+    }
+
+    private void validateEmployeeCode(String code, Integer employeeId)
+    {
+        if (code == null || code.isBlank())
+        {
+            return;
+        }
+
+        boolean exists = employeeId == null
+                ? employeeRepository.existsByCode(code)
+                : employeeRepository.existsByCodeAndIdNot(code, employeeId);
+
+        if (exists)
+        {
+            throw new IllegalArgumentException("Ma nhan vien da ton tai");
+        }
+    }
+
+    private void validateUsername(String username, Integer accountId)
+    {
+        boolean exists = accountId == null
+                ? accountRepository.existsByUsername(username)
+                : accountRepository.existsByUsernameAndIdNot(username, accountId);
+
+        if (exists)
+        {
+            throw new IllegalArgumentException("Username da ton tai");
+        }
+    }
+
+    private BigDecimal defaultIfNull(BigDecimal value)
+    {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private EmployeeResponse toResponse(Employee employee)
+    {
+        if (employee == null)
+        {
+            return null;
+        }
+
+        Account account = employee.getAccount();
+        return EmployeeResponse.builder()
+                .id(employee.getId())
+                .code(employee.getCode())
+                .name(employee.getName())
+                .phone(employee.getPhone())
+                .baseSalary(employee.getBaseSalary())
+                .salaryPerHour(employee.getSalaryPerHour())
+                .status(employee.getStatus())
+                .avatarUrl(employee.getAvatarUrl())
+                .accountId(account != null ? account.getId() : null)
+                .username(account != null ? account.getUsername() : null)
+                .role(account != null ? account.getRole() : null)
+                .accountStatus(account != null ? account.getStatus() : null)
+                .build();
+    }
+}

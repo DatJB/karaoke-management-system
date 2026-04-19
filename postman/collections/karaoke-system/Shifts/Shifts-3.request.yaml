@@ -1,0 +1,20 @@
+$kind: http-request
+name: Shifts
+url: localhost:8081/api/v1/shifts
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"name\": \"Ca Chieu\",\r
+
+    \  \"startTime\": \"14:00:00\",\r
+
+    \  \"endTime\": \"20:00:00\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYxMDUyOCwiZXhwIjoxNzc2Njk2OTI4fQ.xb0GgWwNq91HMgqk8mMXl_K6KM9zyrCUYWCcee61bEI
+order: 177
