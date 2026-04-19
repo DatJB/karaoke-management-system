@@ -27,4 +27,13 @@ public interface BookingRoomRepository extends JpaRepository<BookingRoom, Intege
             @Param("newStartTime") LocalDateTime newStartTime,
             @Param("newEndTime") LocalDateTime newEndTime
     );
+
+    @Query("SELECT br FROM BookingRoom br " +
+            "WHERE br.room.id = :roomId " +
+            "AND br.status = 'RESERVED' " +
+            "AND br.checkinTime >= :now " +
+            "ORDER BY br.checkinTime ASC LIMIT 1")
+    Optional<BookingRoom> findNextUpcomingBooking(@Param("roomId") Integer roomId, @Param("now") LocalDateTime now);
+
+    Optional<BookingRoom> findFirstByRoomIdAndStatusOrderByCheckinTimeAsc(Integer roomId, BookingRoom.BookingRoomStatus bookingRoomStatus);
 }

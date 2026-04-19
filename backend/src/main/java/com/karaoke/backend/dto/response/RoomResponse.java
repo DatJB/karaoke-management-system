@@ -27,5 +27,7 @@ public class RoomResponse
     private LocalDateTime checkinTime;
     private LocalDateTime checkoutTime;
 
+    private LocalDateTime reservationTime;
+
     private List<RoomStaffResponse> staffList;
 }

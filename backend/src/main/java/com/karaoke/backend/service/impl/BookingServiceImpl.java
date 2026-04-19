@@ -23,6 +23,7 @@ import javax.naming.spi.ResolveResult;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -367,11 +368,11 @@ public class BookingServiceImpl implements BookingService
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Khách hàng với ID: " + request.getCustomerId()));
 
-        if (request.getExpectedCheckoutTime().isBefore(request.getReservationTime()))
-        {
+        if (request.getExpectedCheckoutTime().isBefore(request.getReservationTime())) {
             throw new BusinessException("Giờ trả phòng không thể diễn ra trước giờ nhận phòng!");
         }
 
+        List<Room> selectedRooms = new ArrayList<>();
         for (Integer roomId : request.getRoomIds()) {
             Room room = roomRepository.findById(roomId)
                     .orElseThrow(() -> new ResourceNotFoundException("Phòng ID " + roomId + " không tồn tại!"));
@@ -386,6 +387,8 @@ public class BookingServiceImpl implements BookingService
             if (overlapCount > 0) {
                 throw new BusinessException("Phòng " + room.getName() + " đã có người đặt trong khung giờ này. Vui lòng chọn phòng khác!");
             }
+
+            selectedRooms.add(room);
         }
 
         Booking newBooking = new Booking();
@@ -394,48 +397,43 @@ public class BookingServiceImpl implements BookingService
         newBooking.setExpectedCheckoutTime(request.getExpectedCheckoutTime());
         newBooking.setNote(request.getNote());
 
-        if (request.isCheckInImmediately())
-        {
+        if (request.isCheckInImmediately()) {
             newBooking.setStatus(Booking.BookingStatus.CHECKED_IN);
-        } else
-        {
+        } else {
             newBooking.setStatus(Booking.BookingStatus.BOOKED);
         }
+
+        newBooking.setBookingRooms(new ArrayList<>());
 
         Booking savedBooking = bookingRepository.save(newBooking);
 
         LocalDateTime now = LocalDateTime.now();
+        List<BookingRoom> bookingRoomsToSave = new ArrayList<>();
 
-        for (Integer roomId : request.getRoomIds())
-        {
-            Room room = roomRepository.findById(roomId).get();
-
+        for (Room room : selectedRooms) {
             BookingRoom bookingRoom = new BookingRoom();
             bookingRoom.setBooking(savedBooking);
             bookingRoom.setRoom(room);
 
-            if (request.isCheckInImmediately())
-            {
+            if (request.isCheckInImmediately()) {
                 bookingRoom.setStatus(BookingRoom.BookingRoomStatus.PLAYING);
                 bookingRoom.setCheckinTime(now);
-
                 room.setStatus(Room.RoomStatus.OCCUPIED);
-            } else
-            {
+            } else {
                 bookingRoom.setStatus(BookingRoom.BookingRoomStatus.RESERVED);
-
-                if (request.getReservationTime().isBefore(now.plusMinutes(60)))
-                {
+                if (request.getReservationTime().isBefore(now.plusMinutes(60))) {
                     room.setStatus(Room.RoomStatus.RESERVED);
                 }
             }
 
+            savedBooking.getBookingRooms().add(bookingRoom);
+            bookingRoomsToSave.add(bookingRoom);
             roomRepository.save(room);
-            bookingRoomRepository.save(bookingRoom);
         }
 
-        if (request.isCheckInImmediately())
-        {
+        bookingRoomRepository.saveAll(bookingRoomsToSave);
+
+        if (request.isCheckInImmediately()) {
             createInvoiceIfNotExists(savedBooking);
         }
 

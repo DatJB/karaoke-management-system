@@ -1,10 +1,12 @@
 package com.karaoke.backend.entity;
 
+import com.karaoke.backend.converter.FeedbackTagListConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "feedback")
@@ -34,6 +36,10 @@ public class Feedback {
 
     @Column(name = "sentiment_score", precision = 5, scale = 4)
     private BigDecimal sentimentScore;
+
+    @Column(name = "extracted_tags", columnDefinition = "JSON")
+    @Convert(converter = FeedbackTagListConverter.class)
+    private List<FeedbackTag> extractedTags;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

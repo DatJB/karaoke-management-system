@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -59,15 +61,46 @@ public class RoomServiceImpl implements RoomService
         Pageable pageable = PageRequest.of(page - 1, size);
         Page<Room> roomPage = roomRepository.filterRooms(categoryEnum, statusEnum, minSize, maxSize, pageable);
 
-        List<RoomResponse> rooms = roomPage.getContent().stream()
-                .map(room -> RoomResponse.builder()
-                        .id(room.getId())
-                        .name(room.getName())
-                        .size(room.getSize())
-                        .category(room.getCategory().name())
-                        .status(room.getStatus().name())
-                        .build())
-                .toList();
+        LocalDateTime now = LocalDateTime.now();
+
+        List<RoomResponse> rooms = roomPage.getContent().stream().map(room -> {
+
+            RoomResponse.RoomResponseBuilder builder = RoomResponse.builder()
+                    .id(room.getId())
+                    .name(room.getName())
+                    .size(room.getSize())
+                    .category(room.getCategory().name());
+
+            String finalStatus = room.getStatus().name();
+
+            if (finalStatus.equals("AVAILABLE"))
+            {
+                Optional<BookingRoom> upcomingOpt = bookingRoomRepository.findNextUpcomingBooking(room.getId(), now);
+
+                if (upcomingOpt.isPresent())
+                {
+                    BookingRoom upcoming = upcomingOpt.get();
+                    long minutesUntilArrival = ChronoUnit.MINUTES.between(now, upcoming.getCheckinTime());
+
+                    if (minutesUntilArrival <= 60)
+                    {
+                        finalStatus = "RESERVED";
+                        builder.bookingId(upcoming.getBooking().getId());
+                        builder.bookingRoomId(upcoming.getId());
+                        builder.checkinTime(upcoming.getCheckinTime()); // reservation_time
+
+                        if (upcoming.getBooking().getCustomer() != null) {
+                            builder.customerName(upcoming.getBooking().getCustomer().getName());
+                            builder.customerPhone(upcoming.getBooking().getCustomer().getPhone());
+                        }
+                    }
+                }
+            }
+
+            builder.status(finalStatus);
+
+            return builder.build();
+        }).toList();
 
         return PageResponse.<RoomResponse>builder()
                 .currentPage(page)
@@ -92,7 +125,13 @@ public class RoomServiceImpl implements RoomService
                 .status(room.getStatus().name())
                 .currentPrice(calculateCurrentRoomPrice(room.getId()));
 
-        if ("OCCUPIED".equals(room.getStatus().name())) {
+
+        LocalDateTime now = LocalDateTime.now();
+        String dbStatus = room.getStatus().name();
+        builder.status(dbStatus);
+
+        if ("OCCUPIED".equals(room.getStatus().name()))
+        {
             BookingRoom activeBR = bookingRoomRepository.findByRoomIdAndStatus(room.getId(), BookingRoom.BookingRoomStatus.PLAYING)
                     .orElse(null);
 
@@ -114,8 +153,52 @@ public class RoomServiceImpl implements RoomService
                 builder.staffList(staffList);
             }
         }
+        else
+        {
+            Optional<BookingRoom> upcomingOpt = bookingRoomRepository
+                    .findFirstByRoomIdAndStatusOrderByCheckinTimeAsc(room.getId(), BookingRoom.BookingRoomStatus.RESERVED);
+
+            if (upcomingOpt.isPresent())
+            {
+                BookingRoom upcomingBR = upcomingOpt.get();
+                if (upcomingBR.getCheckinTime() != null)
+                {
+                    long minutesUntilArrival = ChronoUnit.MINUTES.between(now, upcomingBR.getCheckinTime());
+
+                    if (minutesUntilArrival <= 60) {
+                        builder.status("RESERVED");
+                        populateBookingInfo(builder, upcomingBR);
+                    }
+                } else
+                {
+                }
+            }
+        }
 
         return builder.build();
+    }
+
+    private void populateBookingInfo(RoomResponse.RoomResponseBuilder builder, BookingRoom br) {
+        builder.bookingRoomId(br.getId())
+                .bookingId(br.getBooking().getId())
+                .checkinTime(br.getCheckinTime());
+
+        if (br.getBooking().getCustomer() != null) {
+            builder.customerId(br.getBooking().getCustomer().getId())
+                    .customerName(br.getBooking().getCustomer().getName())
+                    .customerPhone(br.getBooking().getCustomer().getPhone());
+        }
+    }
+
+    private void populateStaffInfo(RoomResponse.RoomResponseBuilder builder, BookingRoom br) {
+        List<RoomStaffResponse> staffList = br.getEmployees().stream()
+                .map(emp -> RoomStaffResponse.builder()
+                        .id(emp.getEmployee().getId())
+                        .code(emp.getEmployee().getCode())
+                        .name(emp.getEmployee().getName())
+                        .build())
+                .toList();
+        builder.staffList(staffList);
     }
 
     public Double calculateCurrentRoomPrice(Integer roomId) {

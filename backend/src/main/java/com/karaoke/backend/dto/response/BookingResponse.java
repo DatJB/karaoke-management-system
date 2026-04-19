@@ -11,6 +11,7 @@ public class BookingResponse
 {
     private Integer id;
     private String status;
+    private LocalDateTime createdAt;
     private LocalDateTime reservationTime;
     private LocalDateTime expectedCheckoutTime;
     private Integer roomCount;

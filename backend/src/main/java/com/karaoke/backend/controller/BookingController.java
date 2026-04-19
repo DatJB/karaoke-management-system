@@ -36,7 +36,7 @@ public class BookingController
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PutMapping("{/bookingId}")
+    @PutMapping("/{bookingId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
     public ResponseEntity<BookingDetailResponse> updateBookingInfo(
             @PathVariable Integer bookingId,
