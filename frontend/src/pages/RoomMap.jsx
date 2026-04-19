@@ -1,28 +1,72 @@
-import { useState } from 'react'
-import { mockRooms, mockBookings } from '../mock/data'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import RoomCard from '../components/room/RoomCard'
 import RoomDetailModal from '../components/room/RoomDetailModal'
+import { getRooms, getServingRooms } from '../api/room'
 
 export default function RoomMap() {
   const { user } = useAuth()
   const [filter, setFilter] = useState(user.role === 'STAFF' ? 'ASSIGNED' : 'ALL')
   const [capacityFilter, setCapacityFilter] = useState('ALL')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
+  
+  const [roomsData, setRoomsData] = useState([])
+  const [loading, setLoading] = useState(true)
+
   const [selectedRoom, setSelectedRoom] = useState(null)
   const [bookingAction, setBookingAction] = useState(null)
   const [bookingStep, setBookingStep] = useState(1)
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [orderAction, setOrderAction] = useState(null)
 
-  const isAssignedRoom = (name) => name === 'Phòng 102' || name === 'Phòng 202'
+  useEffect(() => {
+    fetchRooms()
+  }, [user.role])
 
-  const displayedRooms = mockRooms.filter(r => {
-    if (filter === 'ASSIGNED' && !isAssignedRoom(r.name)) return false
-    if (categoryFilter !== 'ALL' && r.category !== categoryFilter) return false
-    if (capacityFilter === 'SMALL' && r.size >= 10) return false
-    if (capacityFilter === 'MEDIUM' && (r.size < 10 || r.size > 20)) return false
-    if (capacityFilter === 'LARGE' && r.size <= 20) return false
+  const fetchRooms = async () => {
+    try {
+      setLoading(true)
+      if (user.role === 'STAFF') {
+        const [allData, servingData] = await Promise.all([getRooms(), getServingRooms()])
+        const servingIds = servingData.map(s => s.roomId)
+        
+        const mapped = allData.map(room => {
+          const servingItem = servingData.find(s => s.roomId === room.id)
+          return {
+            room: room,
+            booking: servingItem && servingItem.bookingId ? {
+              id: servingItem.bookingId,
+              customer_name: servingItem.customerName,
+              room_name: servingItem.roomName,
+              status: servingItem.status,
+              checkin_time: servingItem.checkInTime
+            } : null,
+            isAssigned: servingIds.includes(room.id)
+          }
+        })
+        setRoomsData(mapped)
+      } else {
+        const data = await getRooms()
+        const mapped = data.map(r => ({
+          room: r,
+          booking: null, // Admin/Manager endpoints don't return booking list currently
+          isAssigned: false
+        }))
+        setRoomsData(mapped)
+      }
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const displayedRooms = roomsData.filter(({ room, isAssigned }) => {
+    if (filter === 'ASSIGNED' && user.role === 'STAFF' && !isAssigned) return false
+    if (categoryFilter !== 'ALL' && room.category !== categoryFilter) return false
+    if (capacityFilter === 'SMALL' && room.size >= 10) return false
+    if (capacityFilter === 'MEDIUM' && (room.size < 10 || room.size > 20)) return false
+    if (capacityFilter === 'LARGE' && room.size <= 20) return false
     return true
   })
 
@@ -98,24 +142,27 @@ export default function RoomMap() {
 
       {/* Room grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {displayedRooms.map(room => {
-          const booking = (room.status === 'OCCUPIED' || room.status === 'RESERVED')
-            ? mockBookings.find(b => b.room_name === room.name)
-            : null
-          return <RoomCard key={room.id} room={room} booking={booking} onClick={setSelectedRoom} />
-        })}
+        {loading ? (
+          <div className="col-span-full flex justify-center py-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : displayedRooms.map(({ room, booking, isAssigned }) => (
+          <RoomCard key={room.id} room={room} booking={booking} onClick={() => setSelectedRoom({ ...room, isAssigned })} />
+        ))}
       </div>
 
       {/* Detail modal */}
-      <RoomDetailModal
-        selectedRoom={selectedRoom}
-        bookingAction={bookingAction} setBookingAction={setBookingAction}
-        bookingStep={bookingStep} setBookingStep={setBookingStep}
-        selectedCustomerId={selectedCustomerId} setSelectedCustomerId={setSelectedCustomerId}
-        orderAction={orderAction} setOrderAction={setOrderAction}
-        onClose={() => setSelectedRoom(null)}
-        user={user}
-      />
+      {selectedRoom && (
+        <RoomDetailModal
+          selectedRoom={selectedRoom}
+          bookingAction={bookingAction} setBookingAction={setBookingAction}
+          bookingStep={bookingStep} setBookingStep={setBookingStep}
+          selectedCustomerId={selectedCustomerId} setSelectedCustomerId={setSelectedCustomerId}
+          orderAction={orderAction} setOrderAction={setOrderAction}
+          onClose={() => setSelectedRoom(null)}
+          user={user}
+        />
+      )}
     </div>
   )
 }

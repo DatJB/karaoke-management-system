@@ -1,9 +1,30 @@
-import { mockProducts } from '../mock/data'
+import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Package } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { getProducts } from '../api/product'
 
 export default function Products() {
   const { user } = useAuth()
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true)
+      const data = await getProducts()
+      // API returns a Page object, so products are in data.content
+      setProducts(data.content || [])
+    } catch (error) {
+      console.error("Failed to fetch products:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -33,7 +54,11 @@ export default function Products() {
               </tr>
             </thead>
             <tbody>
-              {mockProducts.map((product) => (
+              {loading ? (
+                <tr><td colSpan={6} className="text-center py-8 text-slate-500">Đang tải dữ liệu...</td></tr>
+              ) : products.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-8 text-slate-500">Không có sản phẩm nào</td></tr>
+              ) : products.map((product) => (
                 <tr key={product.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">

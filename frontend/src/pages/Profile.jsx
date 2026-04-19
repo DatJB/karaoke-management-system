@@ -1,11 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
-import { User, Phone, Briefcase, ShieldCheck, Banknote } from 'lucide-react'
+import { User, Phone, Briefcase, ShieldCheck, Banknote, Clock } from 'lucide-react'
+import { getProfile, updatePassword } from '../api/profile'
+import toast from 'react-hot-toast'
 
 export default function Profile() {
   const { user } = useAuth()
   const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [profileData, setProfileData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
+  const [pwdError, setPwdError] = useState('')
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true)
+        const data = await getProfile()
+        setProfileData(data)
+      } catch (error) {
+        console.error("Failed to fetch profile:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProfile()
+  }, [])
+
+  const handleChangePassword = async () => {
+    setPwdError('')
+    if (!pwdForm.oldPassword || !pwdForm.newPassword || !pwdForm.confirmPassword) {
+      setPwdError('Vui lòng nhập đầy đủ thông tin')
+      return
+    }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      setPwdError('Mật khẩu mới không khớp')
+      return
+    }
+    
+    try {
+      await updatePassword({ oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
+      toast.success('Đổi mật khẩu thành công!')
+      setIsChangingPassword(false)
+      setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (error) {
+      setPwdError(error.response?.data || 'Đổi mật khẩu thất bại')
+    }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -25,10 +72,11 @@ export default function Profile() {
         <div className="flex-1 space-y-4 text-center md:text-left z-10 w-full">
           <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
             <div>
-              <h2 className="text-3xl font-display font-bold text-slate-900 dark:text-white">{user.name}</h2>
+              <h2 className="text-3xl font-display font-bold text-slate-900 dark:text-white">{profileData?.name || user.name}</h2>
               <div className="flex items-center gap-2 mt-2 justify-center md:justify-start">
                 <ShieldCheck size={16} className="text-primary" />
-                <p className="text-primary font-bold uppercase tracking-widest text-sm">{user.role}</p>
+                <p className="text-primary font-bold uppercase tracking-widest text-sm">{profileData?.role || user.role}</p>
+                <span className="text-slate-400 text-sm ml-2">(@{profileData?.username})</span>
               </div>
             </div>
             
@@ -45,21 +93,14 @@ export default function Profile() {
               <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><Phone size={18} className="text-slate-500" /></div>
               <div>
                 <p className="text-xs text-slate-400">Điện thoại</p>
-                <p className="font-medium text-slate-900 dark:text-white">0901 234 567</p>
+                <p className="font-medium text-slate-900 dark:text-white">{profileData?.phone || 'Chưa cập nhật'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
               <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><Briefcase size={18} className="text-slate-500" /></div>
               <div>
-                <p className="text-xs text-slate-400">Lương/giờ</p>
-                <p className="font-medium text-slate-900 dark:text-white">50,000đ/giờ</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
-              <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><Banknote size={18} className="text-slate-500" /></div>
-              <div>
-                <p className="text-xs text-slate-400">Lương cơ bản</p>
-                <p className="font-medium text-slate-900 dark:text-white">8,000,000đ/tháng</p>
+                <p className="text-xs text-slate-400">Trạng thái</p>
+                <p className="font-medium text-slate-900 dark:text-white">Đang hoạt động</p>
               </div>
             </div>
           </div>
@@ -90,29 +131,33 @@ export default function Profile() {
         <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Hoạt động gần nhất</h3>
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50">
-              <p className="text-sm text-slate-900 dark:text-white font-medium">Checkout Phòng 102</p>
-              <p className="text-xs text-slate-500 mt-1">Hôm qua, 23:30</p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50">
-              <p className="text-sm text-slate-900 dark:text-white font-medium">Nhận ca làm việc</p>
-              <p className="text-xs text-slate-500 mt-1">Hôm qua, 18:00</p>
-            </div>
+            {profileData?.recentActivities?.length > 0 ? profileData.recentActivities.map((activity, idx) => (
+              <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50">
+                <p className="text-sm text-slate-900 dark:text-white font-medium">{activity.description}</p>
+                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                  <Clock size={10} /> {new Date(activity.timestamp).toLocaleString('vi-VN')}
+                </p>
+              </div>
+            )) : (
+              <p className="text-sm text-slate-500 text-center py-4">Chưa có hoạt động nào gần đây</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Change Password Modal using Portal to center in right pane */}
       {isChangingPassword && document.getElementById('main-layout') && createPortal(
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="absolute inset-0" onClick={() => setIsChangingPassword(false)}></div>
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative z-10 animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Đổi mật khẩu</h3>
             <div className="space-y-4">
+              {pwdError && <p className="text-sm text-red-500 bg-red-50 p-2 rounded-lg">{pwdError}</p>}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Mật khẩu hiện tại</label>
                 <input 
                   type="password" 
+                  value={pwdForm.oldPassword}
+                  onChange={(e) => setPwdForm({...pwdForm, oldPassword: e.target.value})}
                   placeholder="Nhập mật khẩu hiện tại" 
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400" 
                 />
@@ -121,6 +166,8 @@ export default function Profile() {
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Mật khẩu mới</label>
                 <input 
                   type="password" 
+                  value={pwdForm.newPassword}
+                  onChange={(e) => setPwdForm({...pwdForm, newPassword: e.target.value})}
                   placeholder="Nhập mật khẩu mới" 
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400" 
                 />
@@ -129,6 +176,8 @@ export default function Profile() {
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Xác nhận mật khẩu mới</label>
                 <input 
                   type="password" 
+                  value={pwdForm.confirmPassword}
+                  onChange={(e) => setPwdForm({...pwdForm, confirmPassword: e.target.value})}
                   placeholder="Nhập lại mật khẩu mới" 
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400" 
                 />
@@ -142,10 +191,7 @@ export default function Profile() {
                 Hủy
               </button>
               <button 
-                onClick={() => {
-                  alert('Đổi mật khẩu thành công!');
-                  setIsChangingPassword(false);
-                }}
+                onClick={handleChangePassword}
                 className="px-5 py-2.5 rounded-xl font-medium text-white bg-primary hover:bg-primary-dark transition-colors shadow-md shadow-primary/20"
               >
                 Lưu thay đổi

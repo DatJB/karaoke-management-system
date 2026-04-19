@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Clock, Pencil, Save, Plus, Trash2, Star } from 'lucide-react'
 import { mockRooms } from '../mock/data'
 import SpecialPriceModal from '../components/pricing/SpecialPriceModal'
+import { getSpecialPricesByRoom, createSpecialPrice, updateSpecialPrice, deleteSpecialPrice } from '../api/specialPrice'
+import { getRooms, getWeeklyPricing, updateWeeklyPrices, updateTimeSlot } from '../api/room'
+import toast from 'react-hot-toast'
 
 // Day of week config
 const DAYS = [
@@ -14,109 +17,226 @@ const DAYS = [
   { key: 'SUN', label: 'CN' },
 ]
 
-// Mock room_price data - keyed by `${room_id}_${day}_${slot_id}`
-const generateInitialPrices = () => {
-  const prices = {}
-  const slots = initialSlots()
-  mockRooms.forEach(room => {
-    DAYS.forEach(day => {
-      slots.forEach(slot => {
-        const basePrice = room.category === 'VIP' ? 150000 : 90000
-        const dayMultiplier = ['SAT', 'SUN'].includes(day.key) ? 1.3 : 1
-        const slotMultiplier = { 'morning': 0.8, 'afternoon': 0.9, 'evening': 1.3, 'night': 1.2, 'latenight': 0.7 }[slot.id] || 1
-        prices[`${room.id}_${day.key}_${slot.id}`] = Math.round(basePrice * dayMultiplier * slotMultiplier / 1000) * 1000
-      })
-    })
-  })
-  return prices
-}
-
-function initialSlots() {
-  return [
-    { id: 'morning',   label: 'Sáng',      from: '08:00', to: '12:00' },
-    { id: 'afternoon', label: 'Chiều',     from: '12:00', to: '17:00' },
-    { id: 'evening',   label: 'Tối',       from: '17:00', to: '22:00' },
-    { id: 'night',     label: 'Khuya',     from: '22:00', to: '02:00' },
-    { id: 'latenight', label: 'Rạng sáng', from: '02:00', to: '08:00' },
-  ]
-}
+const emptySpecial = { roomId: '', specialDate: '', startTime: '', endTime: '', pricePerHour: '', note: '' }
 
 const initialSpecial = [
   { id: 1, roomId: 1, roomName: 'Phòng 101', specialDate: '2024-12-31', startTime: '20:00', endTime: '02:00', pricePerHour: 200000, note: 'Đêm giao thừa' },
   { id: 2, roomId: 2, roomName: 'Phòng 102', specialDate: '2025-01-01', startTime: '10:00', endTime: '22:00', pricePerHour: 180000, note: 'Tết Dương lịch' },
 ]
 
-const emptySpecial = { roomId: '', specialDate: '', startTime: '', endTime: '', pricePerHour: '', note: '' }
 
 export default function RoomPricing() {
   const [tab, setTab] = useState('regular')          // 'regular' | 'special'
   const [selectedDay, setSelectedDay] = useState('MON')
-  const [slots, setSlots] = useState(initialSlots)
-  const [prices, setPrices] = useState(generateInitialPrices)
+  const [slots, setSlots] = useState([])
+  const [prices, setPrices] = useState({}) // { [roomId_dayOfWeek_slotId]: { id, pricePerHour } }
   const [editing, setEditing] = useState(null)
   const [editValue, setEditValue] = useState('')
-  const [saved, setSaved] = useState(false)
 
   // Slot editing state
+  const [slotChanges, setSlotChanges] = useState([])
   const [slotModalOpen, setSlotModalOpen] = useState(false)
   const [tempSlot, setTempSlot] = useState(null)
 
-  // Special prices state
-  const [specials, setSpecials] = useState(initialSpecial)
+  const [specials, setSpecials] = useState([])
   const [modal, setModal] = useState(null)
   const [specialForm, setSpecialForm] = useState(emptySpecial)
   const [selectedSpecial, setSelectedSpecial] = useState(null)
+  const [realRooms, setRealRooms] = useState([])
+
+  useEffect(() => {
+    if (tab === 'special') {
+      fetchSpecials()
+    } else if (tab === 'regular') {
+      fetchRegularPrices()
+    }
+  }, [tab])
+
+  const fetchRegularPrices = async () => {
+    try {
+      const data = await getWeeklyPricing()
+      const rooms = data.rooms || []
+      setRealRooms(rooms)
+      
+      const newPrices = {}
+      const uniqueSlots = new Map()
+
+      rooms.forEach(room => {
+        room.prices.forEach(p => {
+          const slotId = `${p.startTime}-${p.endTime}`
+          if (!uniqueSlots.has(slotId)) {
+            uniqueSlots.set(slotId, {
+              id: slotId,
+              label: `Khung ${p.startTime.substring(0, 5)} - ${p.endTime.substring(0, 5)}`,
+              from: p.startTime.substring(0, 5),
+              to: p.endTime.substring(0, 5)
+            })
+          }
+          newPrices[`${room.id}_${p.dayOfWeek}_${slotId}`] = {
+            id: p.id,
+            pricePerHour: p.pricePerHour,
+            startTime: p.startTime,
+            endTime: p.endTime,
+            dayOfWeek: p.dayOfWeek
+          }
+        })
+      })
+
+      setSlots(Array.from(uniqueSlots.values()).sort((a, b) => a.from.localeCompare(b.from)))
+      setPrices(newPrices)
+    } catch (error) {
+      console.error("Failed to fetch regular prices:", error)
+    }
+  }
+
+  const fetchSpecials = async () => {
+    try {
+      const rooms = await getRooms()
+      setRealRooms(rooms)
+      const promises = rooms.map(r => getSpecialPricesByRoom(r.id))
+      const results = await Promise.all(promises)
+      setSpecials(results.flat())
+    } catch (error) {
+      console.error("Failed to fetch special prices:", error)
+    }
+  }
 
   // Group rooms by category
-  const standardRooms = mockRooms.filter(r => r.category === 'STANDARD')
-  const vipRooms = mockRooms.filter(r => r.category === 'VIP')
+  const standardRooms = realRooms.filter(r => r.category === 'STANDARD')
+  const vipRooms = realRooms.filter(r => r.category === 'VIP')
 
   const priceKey = (roomId, slotId) => `${roomId}_${selectedDay}_${slotId}`
 
   // Inline edit
   const startEdit = (roomId, slotId) => {
     setEditing({ roomId, slotId })
-    setEditValue(String(prices[priceKey(roomId, slotId)] ?? ''))
+    const key = priceKey(roomId, slotId)
+    setEditValue(String(prices[key]?.pricePerHour ?? ''))
   }
-  const commitEdit = () => {
+  const commitEdit = async () => {
     if (!editing) return
     const val = Number(editValue)
-    if (!isNaN(val) && val > 0) {
-      setPrices(prev => ({ ...prev, [priceKey(editing.roomId, editing.slotId)]: val }))
+    const key = priceKey(editing.roomId, editing.slotId)
+    const currentPrice = prices[key]
+    
+    if (!isNaN(val) && val > 0 && currentPrice) {
+      // Optimistic update
+      setPrices(prev => ({ ...prev, [key]: { ...prev[key], pricePerHour: val } }))
+      try {
+        await updateWeeklyPrices(editing.roomId, [{
+          id: currentPrice.id,
+          dayOfWeek: currentPrice.dayOfWeek,
+          startTime: currentPrice.startTime,
+          endTime: currentPrice.endTime,
+          pricePerHour: val
+        }])
+        toast.success('Đã lưu giá thành công')
+      } catch (error) {
+        console.error("Failed to update price:", error)
+        toast.error("Lỗi khi lưu giá")
+        fetchRegularPrices() // rollback
+      }
     }
     setEditing(null)
-  }
-
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
   }
 
   // Special modal
   const openAddSpecial = () => { setSpecialForm(emptySpecial); setSelectedSpecial(null); setModal('add') }
   const openEditSpecial = (s) => { setSpecialForm({ ...s, roomId: String(s.roomId) }); setSelectedSpecial(s); setModal('edit') }
   const closeModal = () => setModal(null)
-  const handleSpecialSubmit = () => {
-    const room = mockRooms.find(r => r.id === Number(specialForm.roomId))
+  const handleSpecialSubmit = async () => {
+    const room = realRooms.length > 0 ? realRooms.find(r => r.id === Number(specialForm.roomId)) : mockRooms.find(r => r.id === Number(specialForm.roomId))
     if (!room || !specialForm.specialDate || !specialForm.startTime || !specialForm.endTime || !specialForm.pricePerHour) return
-    const entry = { ...specialForm, id: selectedSpecial?.id ?? Date.now(), roomId: Number(specialForm.roomId), roomName: room.name, pricePerHour: Number(specialForm.pricePerHour) }
-    if (modal === 'add') setSpecials(prev => [entry, ...prev])
-    else setSpecials(prev => prev.map(s => s.id === selectedSpecial.id ? entry : s))
-    closeModal()
+    
+    try {
+      if (modal === 'add') {
+        const payload = {
+          specialDate: specialForm.specialDate,
+          startTime: specialForm.startTime + ':00', // API might expect HH:mm:ss
+          endTime: specialForm.endTime + ':00',
+          pricePerHour: Number(specialForm.pricePerHour),
+          note: specialForm.note
+        }
+        await createSpecialPrice(room.id, payload)
+      } else {
+        const payload = {
+          specialDate: specialForm.specialDate,
+          startTime: specialForm.startTime.length === 5 ? specialForm.startTime + ':00' : specialForm.startTime,
+          endTime: specialForm.endTime.length === 5 ? specialForm.endTime + ':00' : specialForm.endTime,
+          pricePerHour: Number(specialForm.pricePerHour),
+          note: specialForm.note
+        }
+        await updateSpecialPrice(selectedSpecial.id, payload)
+      }
+      fetchSpecials()
+      closeModal()
+    } catch (error) {
+      console.error("Failed to save special price:", error)
+      toast.error("Đã xảy ra lỗi khi lưu giá đặc biệt!")
+    }
   }
+
   const handleDeleteSpecial = (id) => {
-    if (window.confirm('Xóa giá đặc biệt này?')) setSpecials(prev => prev.filter(s => s.id !== id))
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <p className="font-medium text-slate-900 dark:text-white">Xóa giá đặc biệt này?</p>
+        <div className="flex gap-2 justify-end">
+          <button className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors" onClick={() => toast.dismiss(t.id)}>Hủy</button>
+          <button className="px-3 py-1.5 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors" onClick={async () => {
+            toast.dismiss(t.id)
+            try {
+              await deleteSpecialPrice(id)
+              fetchSpecials()
+              toast.success('Đã xóa thành công')
+            } catch (error) {
+              console.error("Failed to delete special price:", error)
+              toast.error('Có lỗi xảy ra khi xóa')
+            }
+          }}>Xóa</button>
+        </div>
+      </div>
+    ), { duration: Infinity })
   }
 
   // Slot editing actions
   const openEditSlot = (slot) => {
-    setTempSlot({ ...slot })
+    setTempSlot({ ...slot, oldFrom: slot.from, oldTo: slot.to })
     setSlotModalOpen(true)
   }
   const saveSlotEdit = () => {
-    setSlots(prev => prev.map(s => s.id === tempSlot.id ? tempSlot : s))
-    setSlotModalOpen(false)
-    handleSave()
+    const updatedSlot = {
+      ...tempSlot,
+      from: tempSlot.from.length === 5 ? tempSlot.from + ':00' : tempSlot.from,
+      to: tempSlot.to.length === 5 ? tempSlot.to + ':00' : tempSlot.to,
+      oldFrom: tempSlot.oldFrom.length === 5 ? tempSlot.oldFrom + ':00' : tempSlot.oldFrom,
+      oldTo: tempSlot.oldTo.length === 5 ? tempSlot.oldTo + ':00' : tempSlot.oldTo,
+    };
+    
+    setSlotChanges(prev => [...prev, {
+      oldStartTime: updatedSlot.oldFrom,
+      oldEndTime: updatedSlot.oldTo,
+      newStartTime: updatedSlot.from,
+      newEndTime: updatedSlot.to
+    }]);
+
+    setSlots(prev => prev.map(s => s.id === tempSlot.id ? { ...s, from: tempSlot.from, to: tempSlot.to, label: tempSlot.label } : s));
+    setSlotModalOpen(false);
+  }
+
+  const handleSaveSlots = async () => {
+    if (slotChanges.length === 0) return;
+    try {
+      await updateTimeSlot(slotChanges);
+      toast.success('Cập nhật khung giờ thành công');
+      setSlotChanges([]);
+      fetchRegularPrices();
+    } catch (error) {
+      console.error(error);
+      const msg = error.response?.data?.message || error.response?.data || 'Có lỗi xảy ra khi đổi khung giờ';
+      toast.error(typeof msg === 'string' ? msg : 'Có lỗi xảy ra khi đổi khung giờ');
+      setSlotChanges([]); // rollback local changes
+      fetchRegularPrices();
+    }
   }
 
   return (
@@ -127,10 +247,12 @@ export default function RoomPricing() {
           <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Quản lý giá phòng</h1>
           <p className="text-slate-500 dark:text-slate-400">Cấu hình giá thuê theo khung giờ, ngày trong tuần và ngày đặc biệt.</p>
         </div>
-        <button onClick={handleSave}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md ${saved ? 'bg-green-500 text-white shadow-green-500/30' : 'bg-primary hover:bg-primary-dark text-white shadow-primary/20'}`}>
-          <Save size={16} /> {saved ? 'Đã lưu!' : 'Lưu thay đổi'}
-        </button>
+        {slotChanges.length > 0 && tab === 'regular' && (
+          <button onClick={handleSaveSlots}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md bg-primary hover:bg-primary-dark text-white shadow-primary/20">
+            <Save size={16} /> Lưu khung giờ
+          </button>
+        )}
       </div>
 
       {/* Tab switch */}
@@ -211,18 +333,15 @@ export default function RoomPricing() {
                     <tr key={slot.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                       {/* Slot label */}
                       <td className="px-5 py-4 sticky left-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur">
-                        <div className="flex items-center gap-2.5 group/slot">
+                        <div onClick={() => openEditSlot(slot)} className="flex items-center gap-2.5 group/slot cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-xl transition-colors -ml-2">
                           <div className="relative">
-                            <div className="p-1.5 rounded-lg bg-primary/10 text-primary transition-colors group-hover/slot:bg-primary group-hover/slot:text-white"><Clock size={14} /></div>
-                            <button onClick={() => openEditSlot(slot)} 
-                              className="absolute -top-1.5 -right-1.5 p-1 bg-white dark:bg-slate-800 rounded-full shadow-lg text-slate-400 hover:text-primary opacity-0 group-hover/slot:opacity-100 transition-all border border-slate-200 dark:border-slate-700 z-10"
-                              title="Sửa khung giờ">
-                              <Pencil size={8} />
-                            </button>
+                            <div className="p-1.5 rounded-lg bg-primary/10 text-primary transition-colors group-hover/slot:bg-primary group-hover/slot:text-white">
+                              <Clock size={14} />
+                            </div>
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 dark:text-white text-sm">{slot.label}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">{slot.from} – {slot.to}</p>
+                            <p className="font-bold text-slate-900 dark:text-white text-sm group-hover/slot:text-primary transition-colors">{slot.label}</p>
+                            <p className="text-[10px] text-slate-400 font-mono group-hover/slot:text-primary/70">{slot.from} – {slot.to}</p>
                           </div>
                         </div>
                       </td>
@@ -241,7 +360,7 @@ export default function RoomPricing() {
                             ) : (
                               <button onDoubleClick={() => startEdit(room.id, slot.id)} title="Nhấp đúp để sửa"
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-all group">
-                                {(prices[key] ?? 0).toLocaleString()}đ
+                                {(prices[key]?.pricePerHour ?? 0).toLocaleString()}đ
                                 <Pencil size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
                               </button>
                             )}
@@ -263,7 +382,7 @@ export default function RoomPricing() {
                             ) : (
                               <button onDoubleClick={() => startEdit(room.id, slot.id)} title="Nhấp đúp để sửa"
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-all group">
-                                {(prices[key] ?? 0).toLocaleString()}đ
+                                {(prices[key]?.pricePerHour ?? 0).toLocaleString()}đ
                                 <Pencil size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
                               </button>
                             )}
@@ -278,7 +397,7 @@ export default function RoomPricing() {
           </div>
 
           <p className="text-center text-xs text-slate-500 font-bold italic">
-            💡 Mẹo: Nhấn vào biểu tượng đồng hồ để thay đổi khung giờ, nhấn đúp vào ô để thay đổi giá.
+            💡 Mẹo: Nhấn vào ô chứa biểu tượng đồng hồ để thay đổi khung giờ, nhấn đúp vào ô để thay đổi giá.
           </p>
         </div>
       )}
@@ -319,10 +438,10 @@ export default function RoomPricing() {
                         {new Date(s.specialDate).toLocaleDateString('vi-VN')}
                       </td>
                       <td className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400 text-center">
-                        {s.startTime} – {s.endTime}
+                        {s.startTime.substring(0, 5)} – {s.endTime.substring(0, 5)}
                       </td>
                       <td className="px-6 py-4 text-base font-bold text-right text-primary">
-                        {s.pricePerHour.toLocaleString()}đ
+                        {Number(s.pricePerHour).toLocaleString()}đ
                       </td>
                       <td className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400 max-w-[180px] truncate">
                         {s.note || '—'}
