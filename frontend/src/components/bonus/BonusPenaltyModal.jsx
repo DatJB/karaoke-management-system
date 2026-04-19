@@ -2,7 +2,6 @@ import { createPortal } from 'react-dom'
 import { X, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react'
 import TypeBadge, { BONUS_TYPES, PENALTY_TYPES } from './BonusTypeConfig'
 import BonusEmployeeSelect from './BonusEmployeeSelect'
-import { mockEmployees } from '../../mock/data'
 
 /** Add/Edit + View modal — used only by BonusPenaltyManagement.jsx */
 export default function BonusPenaltyModal({ modal, form, setForm, formError, closeModal, handleSubmit, selected, openEdit }) {
@@ -54,18 +53,11 @@ export default function BonusPenaltyModal({ modal, form, setForm, formError, clo
             </div>
           </div>
 
-          {/* Booking & Invoice */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Booking ID (tùy chọn)</label>
-              <input type="text" placeholder="VD: B012" value={form.bookingId ?? ''} onChange={e => setForm(f => ({ ...f, bookingId: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Hóa đơn ID (tùy chọn)</label>
-              <input type="text" placeholder="VD: INV5" value={form.invoiceId ?? ''} onChange={e => setForm(f => ({ ...f, invoiceId: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-            </div>
+          {/* Booking ID */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Booking ID (tùy chọn)</label>
+            <input type="number" placeholder="VD: 12" value={form.bookingId ?? ''} onChange={e => setForm(f => ({ ...f, bookingId: e.target.value }))}
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
           </div>
 
           {/* Amount */}
@@ -107,34 +99,36 @@ export default function BonusPenaltyModal({ modal, form, setForm, formError, clo
           <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-3">
+          {/* Employee card */}
           <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex items-center justify-center font-bold shrink-0">
-              {selected.employeeName.split(' ').pop()?.charAt(0)}
+              {selected.employeeName?.split(' ').pop()?.charAt(0) || 'E'}
             </div>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">{selected.employeeName}</p>
-              <p className="text-xs text-slate-400 font-mono">CCCD: {mockEmployees.find(e => e.id === selected.employeeId)?.cccd ?? '—'}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{selected.employeeName || 'Nhân viên'}</p>
+              <p className="text-xs text-slate-400">ID: {selected.employeeId}</p>
             </div>
           </div>
+
+          {/* Amount prominent */}
+          <div className={`text-center py-3 rounded-xl mb-2 ${selected.itemType === 'BONUS' ? 'bg-green-50 dark:bg-green-500/10' : 'bg-red-50 dark:bg-red-500/10'}`}>
+            <p className="text-xs text-slate-500 mb-1">{selected.itemType === 'BONUS' ? 'Số tiền thưởng' : 'Số tiền phạt'}</p>
+            <p className={`text-2xl font-bold ${selected.itemType === 'BONUS' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {selected.itemType === 'BONUS' ? '+' : '-'}{selected.amount?.toLocaleString()}đ
+            </p>
+          </div>
+
           {[
-            ['Loại', <TypeBadge kind={selected.kind} type={selected.type} />],
+            ['Loại', <TypeBadge kind={selected.itemType} type={selected.type} />],
             ['Booking ID', selected.bookingId || '—'],
-            ['Hóa đơn ID', selected.invoiceId || '—'],
-            ['Ghi chú / Lý do', selected.note || '—'],
-            ['Ngày tạo', new Date(selected.createdAt).toLocaleDateString('vi-VN')],
-            ['Người tạo', selected.createdBy],
+            ['Ghi chú / Lý do', selected.description || '—'],
+            ['Ngày tạo', selected.createdAt ? new Date(selected.createdAt).toLocaleDateString('vi-VN') : '—'],
           ].map(([label, val]) => (
             <div key={label} className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
               <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
               <span className="text-sm font-medium text-slate-900 dark:text-white">{val}</span>
             </div>
           ))}
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-sm text-slate-500 dark:text-slate-400">Số tiền</span>
-            <span className={`text-2xl font-bold ${selected.kind === 'BONUS' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {selected.kind === 'BONUS' ? '+' : '-'}{selected.amount.toLocaleString()}đ
-            </span>
-          </div>
         </div>
         <div className="p-4 flex gap-3 border-t border-slate-200 dark:border-slate-800">
           <button onClick={closeModal} className="flex-1 py-2.5 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Đóng</button>

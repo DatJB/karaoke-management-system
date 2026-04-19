@@ -1,45 +1,67 @@
-import { useState } from 'react'
-import { Plus, Search, TrendingUp, TrendingDown, Gift, AlertCircle, Filter, Eye, Pencil, Trash2 } from 'lucide-react'
-import { mockEmployees } from '../mock/data'
-import TypeBadge, { BONUS_TYPES, PENALTY_TYPES } from '../components/bonus/BonusTypeConfig'
-import BonusEmployeeSelect from '../components/bonus/BonusEmployeeSelect'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Gift, AlertCircle, Filter, Eye, Pencil, Trash2, Loader2 } from 'lucide-react'
+import TypeBadge from '../components/bonus/BonusTypeConfig'
 import BonusPenaltyModal from '../components/bonus/BonusPenaltyModal'
-
-const initialData = [
-  { id: 1, kind: 'BONUS',   employeeId: 2, employeeName: 'Trần Thị Tiếp',   type: 'TIP',          bookingId: 'B012', invoiceId: null,   amount: 500000,  note: 'Khách hài lòng, tip thêm',      createdBy: 'Admin',   createdAt: '2023-10-15' },
-  { id: 2, kind: 'PENALTY', employeeId: 2, employeeName: 'Trần Thị Tiếp',   type: 'LATE',         bookingId: null,   invoiceId: null,   amount: 100000,  note: 'Đi trễ 2 lần trong tuần',       createdBy: 'Admin',   createdAt: '2023-10-08' },
-  { id: 3, kind: 'BONUS',   employeeId: 3, employeeName: 'Lê Văn Phục',     type: 'ROOM_SUPPORT', bookingId: 'B008', invoiceId: null,   amount: 400000,  note: 'Phục vụ phòng VIP cuối tuần',   createdBy: 'Manager', createdAt: '2023-10-20' },
-  { id: 4, kind: 'PENALTY', employeeId: 3, employeeName: 'Lê Văn Phục',     type: 'MISCONDUCT',   bookingId: null,   invoiceId: null,   amount: 200000,  note: 'Vi phạm đồng phục',             createdBy: 'Manager', createdAt: '2023-10-12' },
-  { id: 5, kind: 'BONUS',   employeeId: 1, employeeName: 'Nguyễn Văn Quản', type: 'KPI',          bookingId: null,   invoiceId: null,   amount: 1500000, note: 'Hoàn thành KPI tháng 9',        createdBy: 'Admin',   createdAt: '2023-09-28' },
-  { id: 6, kind: 'BONUS',   employeeId: 2, employeeName: 'Trần Thị Tiếp',   type: 'SERVICE',      bookingId: null,   invoiceId: 'INV5', amount: 200000,  note: 'Doanh số đồ uống cao',          createdBy: 'Admin',   createdAt: '2023-09-20' },
-]
+import bonusPenaltyApi from '../api/bonusPenaltyApi'
 
 const emptyForm = { kind: 'BONUS', employeeId: null, employeeName: '', type: 'SERVICE', bookingId: '', invoiceId: '', amount: '', note: '' }
 
 export default function BonusPenaltyManagement() {
-  const [data, setData] = useState(initialData)
-  const [search, setSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [data, setData]           = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [search, setSearch]       = useState('')
+  const [dateFrom, setDateFrom]   = useState('')
+  const [dateTo, setDateTo]       = useState('')
   const [kindFilter, setKindFilter] = useState('ALL')
-  const [modal, setModal] = useState(null)
-  const [selected, setSelected] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+  const [modal, setModal]         = useState(null)
+  const [selected, setSelected]   = useState(null)
+  const [form, setForm]           = useState(emptyForm)
   const [formError, setFormError] = useState('')
 
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const res = await bonusPenaltyApi.getAllCombined(0, 200)
+      if (res.data) {
+        setData(res.data.content)
+      }
+    } catch (error) {
+      console.error('Failed to fetch bonuses/penalties', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filtered = data.filter(item => {
-    if (kindFilter !== 'ALL' && item.kind !== kindFilter) return false
-    if (search && !item.employeeName.toLowerCase().includes(search.toLowerCase())) return false
+    if (kindFilter !== 'ALL' && item.itemType !== kindFilter) return false
+    if (search && !item.employeeName?.toLowerCase().includes(search.toLowerCase())) return false
     if (dateFrom && item.createdAt < dateFrom) return false
     if (dateTo && item.createdAt > dateTo) return false
     return true
   })
 
-  const totalBonus   = filtered.filter(i => i.kind === 'BONUS').reduce((s, i) => s + i.amount, 0)
-  const totalPenalty = filtered.filter(i => i.kind === 'PENALTY').reduce((s, i) => s + i.amount, 0)
+  const totalBonus   = filtered.filter(i => i.itemType === 'BONUS').reduce((s, i) => s + i.amount, 0)
+  const totalPenalty = filtered.filter(i => i.itemType === 'PENALTY').reduce((s, i) => s + i.amount, 0)
 
   const openAdd  = () => { setForm(emptyForm); setFormError(''); setSelected(null); setModal('add') }
-  const openEdit = (item) => { setForm({ ...item }); setFormError(''); setSelected(item); setModal('edit') }
+  const openEdit = (item) => { 
+    setForm({ 
+      kind: item.itemType, 
+      employeeId: item.employeeId, 
+      employeeName: item.employeeName, 
+      type: item.type, 
+      amount: item.amount, 
+      note: item.description,
+      bookingId: item.bookingId || ''
+    }); 
+    setFormError(''); 
+    setSelected(item); 
+    setModal('edit') 
+  }
   const openView = (item) => { setSelected(item); setModal('view') }
   const closeModal = () => setModal(null)
 
@@ -49,18 +71,57 @@ export default function BonusPenaltyManagement() {
     return true
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return
-    if (modal === 'add') {
-      setData(prev => [{ ...form, id: Date.now(), amount: Number(form.amount), createdBy: 'Admin', createdAt: new Date().toISOString().slice(0,10) }, ...prev])
-    } else {
-      setData(prev => prev.map(i => i.id === selected.id ? { ...i, ...form, amount: Number(form.amount) } : i))
+    try {
+      const payload = {
+        employeeId: form.employeeId,
+        type: form.type,
+        amount: Number(form.amount),
+        bookingId: form.bookingId ? form.bookingId : null,
+      };
+      
+      // Bonus uses "note", Penalty uses "reason"
+      if (form.kind === 'BONUS') {
+        payload.note = form.note;
+      } else {
+        payload.reason = form.note;
+      }
+
+      if (modal === 'add') {
+        if (form.kind === 'BONUS') {
+          await bonusPenaltyApi.createBonus(payload)
+        } else {
+          await bonusPenaltyApi.createPenalty(payload)
+        }
+      } else {
+        if (form.kind === 'BONUS') {
+          await bonusPenaltyApi.updateBonus(selected.id, payload)
+        } else {
+          await bonusPenaltyApi.updatePenalty(selected.id, payload)
+        }
+      }
+      fetchData()
+      closeModal()
+    } catch (error) {
+      console.error("Failed to save", error)
+      setFormError("Lỗi khi lưu dữ liệu.")
     }
-    closeModal()
   }
 
-  const handleDelete = (id) => {
-    if (window.confirm('Bạn có chắc muốn xóa bản ghi này?')) setData(prev => prev.filter(i => i.id !== id))
+  const handleDelete = async (id, itemType) => {
+    if (window.confirm('Bạn có chắc muốn xóa bản ghi này?')) {
+      try {
+        if (itemType === 'BONUS') {
+          await bonusPenaltyApi.deleteBonus(id)
+        } else {
+          await bonusPenaltyApi.deletePenalty(id)
+        }
+        setData(prev => prev.filter(i => i.id !== id || i.itemType !== itemType))
+      } catch (error) {
+        console.error("Delete failed", error)
+      }
+    }
   }
 
   return (
@@ -143,37 +204,46 @@ export default function BonusPenaltyManagement() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length > 0 ? filtered.map(item => (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100 dark:border-slate-800">
+                    {Array.from({ length: 9 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" style={{ width: `${50 + j * 5}%` }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length > 0 ? filtered.map(item => (
                 <tr key={item.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex items-center justify-center font-bold text-xs shrink-0">
-                        {item.employeeName.split(' ').pop()?.charAt(0)}
+                        {item.employeeName ? item.employeeName.split(' ').pop()?.charAt(0) : 'E'}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900 dark:text-white text-sm">{item.employeeName}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{mockEmployees.find(e => e.id === item.employeeId)?.cccd ?? ''}</p>
+                        <p className="font-semibold text-slate-900 dark:text-white text-sm">{item.employeeName || 'Nhân viên'}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3"><TypeBadge kind={item.kind} type={item.type} /></td>
-                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 max-w-[180px] truncate">{item.note}</td>
+                  <td className="px-4 py-3"><TypeBadge kind={item.itemType} type={item.type} /></td>
+                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 max-w-[180px] truncate">{item.description}</td>
                   <td className="px-4 py-3 text-center">
                     {item.bookingId ? <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-mono">{item.bookingId}</span> : <span className="text-slate-300 dark:text-slate-600">—</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {item.invoiceId ? <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-mono">{item.invoiceId}</span> : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                    <span className="text-slate-300 dark:text-slate-600">—</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 text-center font-mono">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
-                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{item.createdBy}</td>
-                  <td className={`px-6 py-3 text-base font-bold text-right ${item.kind === 'BONUS' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {item.kind === 'BONUS' ? '+' : '-'}{item.amount.toLocaleString()}đ
+                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">Admin</td>
+                  <td className={`px-6 py-3 text-base font-bold text-right ${item.itemType === 'BONUS' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {item.itemType === 'BONUS' ? '+' : '-'}{item.amount.toLocaleString()}đ
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1.5">
                       <button onClick={() => openView(item)} title="Xem" className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 flex items-center justify-center transition-colors"><Eye size={14} /></button>
                       <button onClick={() => openEdit(item)} title="Sửa" className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/20 flex items-center justify-center transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => handleDelete(item.id)} title="Xóa" className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center transition-colors"><Trash2 size={14} /></button>
+                      <button onClick={() => handleDelete(item.id, item.itemType)} title="Xóa" className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>

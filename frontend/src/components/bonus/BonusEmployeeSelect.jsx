@@ -1,17 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, ChevronDown } from 'lucide-react'
-import { mockEmployees } from '../../mock/data'
+import { Search, ChevronDown, Loader2 } from 'lucide-react'
+import employeeApi from '../../api/employeeApi'
 
-/** Used only by BonusPenaltyManagement.jsx */
+const roleLabel = { ADMIN: 'Admin', MANAGER: 'Manager', STAFF: 'NV Phục vụ', RECEPTIONIST: 'Lễ tân' }
+
+/** Used only by BonusPenaltyManagement.jsx — fetches employees from real API */
 export default function BonusEmployeeSelect({ value, onChange }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(false)
   const ref = useRef(null)
-
-  const selectedEmp = mockEmployees.find(e => e.id === value)
-  const filtered = mockEmployees.filter(e =>
-    e.name.toLowerCase().includes(query.toLowerCase()) || e.cccd?.includes(query)
-  )
 
   useEffect(() => {
     const handler = (e) => {
@@ -20,6 +19,19 @@ export default function BonusEmployeeSelect({ value, onChange }) {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    employeeApi.getAll()
+      .then(res => setEmployees(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setEmployees([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const selectedEmp = employees.find(e => e.id === value)
+  const filtered = employees.filter(e =>
+    e.name.toLowerCase().includes(query.toLowerCase())
+  )
 
   const handleSelect = (emp) => { onChange(emp); setQuery(''); setOpen(false) }
 
@@ -34,11 +46,14 @@ export default function BonusEmployeeSelect({ value, onChange }) {
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-slate-900 dark:text-white truncate">{selectedEmp.name}</p>
-              <p className="text-[10px] text-slate-400 font-mono">{selectedEmp.cccd}</p>
+              <p className="text-[10px] text-slate-400">{roleLabel[selectedEmp.role] || selectedEmp.role}</p>
             </div>
           </div>
         ) : <span className="text-slate-400">-- Chọn nhân viên --</span>}
-        <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        {loading
+          ? <Loader2 size={15} className="text-slate-400 shrink-0 animate-spin" />
+          : <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        }
       </button>
 
       {open && (
@@ -46,13 +61,17 @@ export default function BonusEmployeeSelect({ value, onChange }) {
           <div className="p-2 border-b border-slate-100 dark:border-slate-800">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-              <input autoFocus type="text" placeholder="Tìm tên hoặc CCCD..." value={query}
+              <input autoFocus type="text" placeholder="Tìm theo tên..." value={query}
                 onChange={e => setQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:outline-none" />
             </div>
           </div>
           <ul className="max-h-48 overflow-y-auto">
-            {filtered.length > 0 ? filtered.map(emp => (
+            {loading ? (
+              <li className="px-4 py-3 text-sm text-slate-400 text-center flex items-center justify-center gap-2">
+                <Loader2 size={14} className="animate-spin" /> Đang tải...
+              </li>
+            ) : filtered.length > 0 ? filtered.map(emp => (
               <li key={emp.id}>
                 <button type="button" onClick={() => handleSelect(emp)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left ${value === emp.id ? 'bg-primary/5' : ''}`}>
@@ -61,9 +80,8 @@ export default function BonusEmployeeSelect({ value, onChange }) {
                   </div>
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${value === emp.id ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>{emp.name}</p>
-                    <p className="text-[11px] text-slate-400 font-mono">CCCD: {emp.cccd}</p>
+                    <p className="text-[11px] text-slate-400">{roleLabel[emp.role] || emp.role}</p>
                   </div>
-                  <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 uppercase shrink-0">{emp.role}</span>
                 </button>
               </li>
             )) : <li className="px-4 py-3 text-sm text-slate-400 text-center">Không tìm thấy nhân viên</li>}

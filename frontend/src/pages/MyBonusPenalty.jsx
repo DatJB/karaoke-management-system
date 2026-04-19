@@ -1,25 +1,38 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { TrendingUp, TrendingDown, Gift, AlertCircle, Filter, CalendarDays, FileText, User } from 'lucide-react'
-
-const mockBonusPenalty = [
-  { id: 1, type: 'BONUS', date: '15/10/2023', period: 'Tháng 10/2023', reason: 'Phục vụ tốt, khách khen', amount: 500000, approvedBy: 'Nguyễn Văn A' },
-  { id: 2, type: 'PENALTY', date: '08/10/2023', period: 'Tháng 10/2023', reason: 'Đi trễ 2 lần', amount: 100000, approvedBy: 'Nguyễn Văn A' },
-  { id: 3, type: 'BONUS', date: '28/09/2023', period: 'Tháng 09/2023', reason: 'Hoàn thành tốt tháng 9', amount: 200000, approvedBy: 'Trần Thị B' },
-  { id: 4, type: 'BONUS', date: '05/08/2023', period: 'Tháng 08/2023', reason: 'Nhân viên xuất sắc tháng', amount: 300000, approvedBy: 'Nguyễn Văn A' },
-  { id: 5, type: 'PENALTY', date: '12/08/2023', period: 'Tháng 08/2023', reason: 'Vi phạm quy định đồng phục', amount: 50000, approvedBy: 'Trần Thị B' },
-  { id: 6, type: 'BONUS', date: '20/07/2023', period: 'Tháng 07/2023', reason: 'Tăng ca cuối tuần', amount: 400000, approvedBy: 'Nguyễn Văn A' },
-]
+import bonusPenaltyApi from '../api/bonusPenaltyApi'
+import TypeBadge from '../components/bonus/BonusTypeConfig'
 
 export default function MyBonusPenalty() {
   const { user } = useAuth()
   const [filter, setFilter] = useState('ALL')
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const displayed = mockBonusPenalty.filter(item => filter === 'ALL' || item.type === filter)
+  useEffect(() => {
+    fetchMyCombined()
+  }, [])
 
-  const totalBonus = mockBonusPenalty.filter(i => i.type === 'BONUS').reduce((s, i) => s + i.amount, 0)
-  const totalPenalty = mockBonusPenalty.filter(i => i.type === 'PENALTY').reduce((s, i) => s + i.amount, 0)
-  const totalBonus3m = mockBonusPenalty.filter(i => i.type === 'BONUS').slice(0, 3).reduce((s, i) => s + i.amount, 0)
+  const fetchMyCombined = async () => {
+    setLoading(true)
+    try {
+      const res = await bonusPenaltyApi.getMyCombined(0, 100)
+      if (res.data) {
+        setData(res.data.content)
+      }
+    } catch (error) {
+      console.error("Failed to fetch my bonus penalty", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const displayed = data.filter(item => filter === 'ALL' || item.itemType === filter)
+
+  const totalBonus = data.filter(i => i.itemType === 'BONUS').reduce((s, i) => s + i.amount, 0)
+  const totalPenalty = data.filter(i => i.itemType === 'PENALTY').reduce((s, i) => s + i.amount, 0)
+  const totalBonus3m = data.filter(i => i.itemType === 'BONUS').slice(0, 3).reduce((s, i) => s + i.amount, 0)
 
   return (
     <div className="space-y-6">
@@ -84,47 +97,50 @@ export default function MyBonusPenalty() {
 
       {/* List */}
       <div className="space-y-3">
-        {displayed.map(item => (
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-5 flex items-start gap-5 rounded-2xl">
+              <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-700 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-3">
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-1/3" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-1/4" />
+              </div>
+            </div>
+          ))
+        ) : displayed.length > 0 ? displayed.map(item => (
           <div
             key={item.id}
-            className={`glass-card border-none bg-white/80 dark:bg-slate-900/80 p-5 flex items-start gap-5 rounded-2xl transition-all hover:shadow-md ${item.type === 'BONUS'
+            className={`glass-card border-none bg-white/80 dark:bg-slate-900/80 p-5 flex items-start gap-5 rounded-2xl transition-all hover:shadow-md ${item.itemType === 'BONUS'
               ? 'border-l-4 border-l-green-500'
               : 'border-l-4 border-l-red-500'
               }`}
           >
-            <div className={`p-3 rounded-xl shrink-0 ${item.type === 'BONUS'
+            <div className={`p-3 rounded-xl shrink-0 ${item.itemType === 'BONUS'
               ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
               : 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
               }`}>
-              {item.type === 'BONUS' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+              {item.itemType === 'BONUS' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1.5 ${item.type === 'BONUS'
-                    ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-                    : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
-                    }`}>
-                    {item.type === 'BONUS' ? 'THƯỞNG' : 'PHẠT'}
-                  </span>
-                  <p className="font-semibold text-slate-900 dark:text-white text-base">{item.reason}</p>
+                  <TypeBadge kind={item.itemType} type={item.type} />
+                  <p className="font-semibold text-slate-900 dark:text-white text-base mt-2">{item.description}</p>
                 </div>
-                <p className={`text-lg font-bold shrink-0 ${item.type === 'BONUS' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                <p className={`text-lg font-bold shrink-0 ${item.itemType === 'BONUS' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}>
-                  {item.type === 'BONUS' ? '+' : '-'}{item.amount.toLocaleString()}đ
+                  {item.itemType === 'BONUS' ? '+' : '-'}{item.amount.toLocaleString()}đ
                 </p>
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1"><CalendarDays size={12} /> {item.date}</span>
-                <span className="flex items-center gap-1"><FileText size={12} /> {item.period}</span>
-                <span className="flex items-center gap-1"><User size={12} /> Duyệt bởi: {item.approvedBy}</span>
+                <span className="flex items-center gap-1"><CalendarDays size={12} /> {new Date(item.createdAt).toLocaleDateString('vi-VN')}</span>
+                <span className="flex items-center gap-1"><FileText size={12} /> Bảng lương / Phiếu</span>
+                <span className="flex items-center gap-1"><User size={12} /> {item.bookingId ? `Booking: ${item.bookingId}` : 'Khác'}</span>
               </div>
             </div>
           </div>
-        ))}
-
-        {displayed.length === 0 && (
+        )) : (
           <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-10 text-center text-slate-400">
             Không có dữ liệu phù hợp.
           </div>
