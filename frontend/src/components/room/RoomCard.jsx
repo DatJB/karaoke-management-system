@@ -1,27 +1,26 @@
 import { Users, Clock, User } from 'lucide-react'
 
 export const ROOM_STATUS_COLOR = {
-  AVAILABLE:   'bg-green-500 text-white shadow-green-500/30',
-  OCCUPIED:    'bg-primary text-white shadow-primary/30',
-  RESERVED:    'bg-orange-500 text-white shadow-orange-500/30',
+  AVAILABLE: 'bg-green-500 text-white shadow-green-500/30',
+  OCCUPIED: 'bg-primary text-white shadow-primary/30',
+  RESERVED: 'bg-orange-500 text-white shadow-orange-500/30',
   MAINTENANCE: 'bg-slate-500 text-white shadow-slate-500/30',
 }
 
 export const ROOM_STATUS_LABEL = {
-  AVAILABLE:   'TRỐNG',
-  OCCUPIED:    'ĐANG HÁT',
-  RESERVED:    'ĐÃ ĐẶT',
+  AVAILABLE: 'TRỐNG',
+  OCCUPIED: 'ĐANG HÁT',
+  RESERVED: 'ĐÃ ĐẶT',
   MAINTENANCE: 'BẢO TRÌ',
 }
 
 export const ROOM_STATUS_BG = {
-  AVAILABLE:   'border-green-500/20 bg-green-500/5',
-  OCCUPIED:    'border-primary/50 bg-primary/10',
-  RESERVED:    'border-orange-500/30 bg-orange-500/10',
+  AVAILABLE: 'border-green-500/20 bg-green-500/5',
+  OCCUPIED: 'border-primary/50 bg-primary/10',
+  RESERVED: 'border-orange-500/30 bg-orange-500/10',
   MAINTENANCE: 'border-slate-500/20 bg-slate-500/5',
 }
 
-/** Used only by RoomMap.jsx */
 export default function RoomCard({ room, booking, onClick }) {
   return (
     <div
@@ -43,6 +42,31 @@ export default function RoomCard({ room, booking, onClick }) {
           <Users size={18} className="text-slate-500" />
           <span className="text-sm font-medium">Sức chứa: {room.size} người</span>
         </div>
+
+        {room.status === 'OCCUPIED' && (
+          <div className="text-primary font-bold text-xs uppercase tracking-wider px-3 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Đang có khách hát
+          </div>
+        )}
+        {room.status === 'RESERVED' && (
+          <div className="text-orange-500 font-bold text-xs uppercase tracking-wider px-3 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-orange-500" />
+            Đã có khách đặt
+          </div>
+        )}
+        {room.status === 'MAINTENANCE' && (
+          <div className="text-slate-500 font-bold text-xs uppercase tracking-wider px-3 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-slate-500" />
+            Phòng đang bảo trì
+          </div>
+        )}
+        {room.status === 'AVAILABLE' && (
+          <div className="text-green-500 font-bold text-xs uppercase tracking-wider px-3 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            Sẵn sàng phục vụ
+          </div>
+        )}
 
         {booking && room.status === 'OCCUPIED' && (
           <div className="space-y-2">
@@ -76,11 +100,7 @@ export default function RoomCard({ room, booking, onClick }) {
           </div>
         )}
 
-        {!booking && room.status === 'AVAILABLE' && (
-          <div className="flex items-center gap-3 text-green-600 dark:text-green-400 font-medium opacity-80 p-2.5">
-            <span className="text-sm">Sẵn sàng phục vụ</span>
-          </div>
-        )}
+
       </div>
     </div>
   )
