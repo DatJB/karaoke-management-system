@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { CalendarDays, Plus, X, Search, Clock, Trash2, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
 import api from '../api/axios'
 
-const WEEKDAYS = ['Thu 2', 'Thu 3', 'Thu 4', 'Thu 5', 'Thu 6', 'Thu 7', 'CN']
+const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
 const SHIFT_COLORS = [
   { color: 'bg-amber-500', light: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400' },
   { color: 'bg-blue-500', light: 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400' },
@@ -73,7 +73,7 @@ export default function StaffAssignment() {
       })))
       setSchedules(scheduleResponse.data || [])
     } catch (err) {
-      setError(getErrorMessage(err, 'Khong the tai du lieu phan cong.'))
+      setError(getErrorMessage(err, 'Không thể tải dữ liệu phân công.'))
     } finally {
       setLoading(false)
     }
@@ -112,14 +112,14 @@ export default function StaffAssignment() {
       setSchedules((prev) => [...prev, response.data])
       closeModal()
     } catch (err) {
-      window.alert(getErrorMessage(err, 'Phan cong nhan vien that bai.'))
+      window.alert(getErrorMessage(err, 'Phân công nhân viên thất bại.'))
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleRemove = async (schedule) => {
-    if (!window.confirm(`Xoa phan cong cua ${schedule.employeeName}?`)) {
+    if (!window.confirm(`Xóa phân công của "${schedule.employeeName}"?`)) {
       return
     }
 
@@ -134,7 +134,7 @@ export default function StaffAssignment() {
       })
       setSchedules((prev) => prev.filter((item) => item.id !== schedule.id))
     } catch (err) {
-      window.alert(getErrorMessage(err, 'Xoa phan cong that bai.'))
+      window.alert(getErrorMessage(err, 'Xóa phân công thất bại.'))
     } finally {
       setSubmitting(false)
     }
@@ -152,8 +152,8 @@ export default function StaffAssignment() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Phan cong nhan vien</h1>
-          <p className="text-slate-500 dark:text-slate-400">Sap xep lich truc va quan ly ca lam viec cua doi ngu nhan vien.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Phân công nhân viên</h1>
+          <p className="text-slate-500 dark:text-slate-400">Sắp xếp lịch trực và quản lý ca làm việc của đội ngũ nhân viên.</p>
         </div>
       </div>
 
@@ -172,14 +172,14 @@ export default function StaffAssignment() {
           <span className="font-bold text-slate-900 dark:text-white text-sm">
             {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
           </span>
-          {weekOffset === 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase">Tuan nay</span>}
+          {weekOffset === 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase">Tuần hiện tại</span>}
         </div>
         <button onClick={() => setWeekOffset((value) => value + 1)} className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors">
           <ChevronRight size={18} />
         </button>
         {weekOffset !== 0 && (
           <button onClick={() => setWeekOffset(0)} className="px-3 py-2 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors">
-            Ve tuan nay
+            Về tuần hiện tại
           </button>
         )}
       </div>
@@ -211,7 +211,7 @@ export default function StaffAssignment() {
             <thead>
               <tr className="bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <th className="px-4 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 text-left min-w-[120px] sticky left-0 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur z-10">
-                  <div className="flex items-center gap-2"><Clock size={14} /> Ca lam</div>
+                  <div className="flex items-center gap-2"><Clock size={14} />Ca làm</div>
                 </th>
                 {WEEKDAYS.map((day, index) => {
                   const date = weekDates[index]
@@ -230,13 +230,13 @@ export default function StaffAssignment() {
               {loading ? (
                 <tr>
                   <td colSpan={WEEKDAYS.length + 1} className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Dang tai du lieu...
+                    Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : shifts.length === 0 ? (
                 <tr>
                   <td colSpan={WEEKDAYS.length + 1} className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Chua co ca lam nao.
+                    Chưa có ca làm nào.
                   </td>
                 </tr>
               ) : (
@@ -281,7 +281,7 @@ export default function StaffAssignment() {
                               disabled={submitting}
                               className="w-full py-1.5 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:border-primary hover:text-primary dark:hover:border-primary transition-all flex items-center justify-center gap-1 text-[10px] font-bold opacity-60 hover:opacity-100 disabled:opacity-40"
                             >
-                              <Plus size={12} /> Them
+                              <Plus size={12} /> Thêm
                             </button>
                           </div>
                         </td>
@@ -311,7 +311,7 @@ export default function StaffAssignment() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 relative z-10 flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
               <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Phan cong nhan vien</h3>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Phân công nhân viên</h3>
                 <p className="text-sm text-slate-500 mt-1">
                   {WEEKDAYS[modal.day]} ({formatDate(weekDates[modal.day])}) · {shifts.find((shift) => shift.id === modal.shiftId)?.name}
                 </p>
@@ -323,12 +323,12 @@ export default function StaffAssignment() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wider text-center">Chon nhan vien truc ca</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wider text-center">Chọn nhân viên trực ca</label>
                 <div className="relative mb-5">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     type="text"
-                    placeholder="Tim ten hoac ma nhan vien..."
+                    placeholder="Tìm mã hoặc tên nhân viên..."
                     value={empSearch}
                     onChange={(event) => setEmpSearch(event.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm"
@@ -355,7 +355,7 @@ export default function StaffAssignment() {
                           <p className={`text-base font-bold truncate ${isSelected ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>{employee.name}</p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-[11px] text-slate-500 font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded leading-none uppercase">{employee.role}</span>
-                            <span className="text-[11px] text-slate-400">· {shiftCount} ca/tuan</span>
+                            <span className="text-[11px] text-slate-400">· {shiftCount} ca trong tuần</span>
                           </div>
                         </div>
                         <span className={`w-3 h-3 rounded-full shrink-0 border-2 border-white dark:border-slate-900 ${employee.status === 'AVAILABLE' ? 'bg-green-500' : employee.status === 'BUSY' ? 'bg-orange-500' : 'bg-slate-400'}`} />
@@ -369,14 +369,14 @@ export default function StaffAssignment() {
 
             <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 flex gap-3 shrink-0">
               <button onClick={closeModal} className="flex-1 py-3 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition-colors">
-                Huy
+                Hủy
               </button>
               <button
                 onClick={handleAssign}
                 disabled={!selectedEmpId || submitting}
                 className="flex-1 py-3 font-bold text-white bg-primary hover:bg-primary-dark disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed rounded-2xl transition-colors shadow-lg shadow-primary/30 disabled:shadow-none"
               >
-                Luu phan cong
+                Lưu phân công
               </button>
             </div>
           </div>

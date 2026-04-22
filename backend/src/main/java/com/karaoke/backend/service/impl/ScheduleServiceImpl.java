@@ -44,14 +44,14 @@ public class ScheduleServiceImpl implements ScheduleService
         if (employeeShiftRepository.existsByEmployeeIdAndShiftIdAndWorkDate(
                 request.getEmployeeId(), request.getShiftId(), request.getWorkDate())
         ) {
-            throw new IllegalArgumentException("Nhan vien da duoc phan vao ca nay trong ngay da chon");
+            throw new IllegalArgumentException("Nhân viên đã được phân công vào ca làm này");
         }
 
         Employee employee = employeeRepository.findById(request.getEmployeeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nhan vien voi id = " + request.getEmployeeId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên với id = " + request.getEmployeeId()));
 
         Shift shift = shiftRepository.findById(request.getShiftId())
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay ca voi id = " + request.getShiftId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca với id = " + request.getShiftId()));
 
         EmployeeShift schedule = EmployeeShift.builder()
                 .employee(employee)
@@ -69,7 +69,7 @@ public class ScheduleServiceImpl implements ScheduleService
     {
         EmployeeShift schedule = employeeShiftRepository
                 .findByEmployeeIdAndShiftIdAndWorkDate(request.getEmployeeId(), request.getShiftId(), request.getWorkDate())
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay phan cong can xoa"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phân công cần xóa"));
 
         employeeShiftRepository.delete(schedule);
     }
@@ -81,11 +81,11 @@ public class ScheduleServiceImpl implements ScheduleService
 
         Integer employeeId = accountRepository.findByUsername(username)
                 .map(account -> account.getEmployee() != null ? account.getEmployee().getId() : null)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tai khoan dang nhap"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản đăng nhập"));
 
         if (employeeId == null)
         {
-            throw new ResourceNotFoundException("Tai khoan hien tai khong lien ket nhan vien");
+            throw new ResourceNotFoundException("Tài khoản hiện tại không liên kết với nhân viên");
         }
 
         return employeeShiftRepository.findSchedulesByEmployee(employeeId, fromDate, toDate).stream()

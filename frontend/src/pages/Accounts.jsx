@@ -1,29 +1,20 @@
-import { useEffect, useState } from 'react'
-import { Search, Shield, Power, Trash2, Edit2, CheckCircle2, XCircle } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Search, Shield, Power, Trash2, Edit2, CheckCircle2, XCircle, X } from 'lucide-react'
 import api from '../api/axios'
 
 const ROLE_OPTIONS = ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'STAFF']
 const STATUS_OPTIONS = ['ACTIVE', 'INACTIVE']
 
+const defaultForm = {
+  username: '',
+  password: '',
+  role: 'STAFF',
+  status: 'ACTIVE',
+}
+
 const getErrorMessage = (error, fallback) =>
   error.response?.data?.message || error.message || fallback
-
-const askValue = (label, defaultValue = '', required = false) => {
-  const value = window.prompt(label, defaultValue ?? '')
-
-  if (value === null) {
-    return { cancelled: true }
-  }
-
-  const trimmed = value.trim()
-
-  if (required && !trimmed) {
-    window.alert(`${label} khong duoc de trong.`)
-    return { retry: true }
-  }
-
-  return { value: trimmed }
-}
 
 const getRoleColor = (role) => {
   switch (role) {
@@ -38,6 +29,20 @@ const getRoleColor = (role) => {
   }
 }
 
+const formatLastLogin = (value) => {
+  if (!value) {
+    return 'Chưa đăng nhập.'
+  }
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
 export default function Accounts() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState('')
@@ -45,6 +50,9 @@ export default function Accounts() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [editingAccountId, setEditingAccountId] = useState(null)
+  const [form, setForm] = useState(defaultForm)
+  const [formError, setFormError] = useState('')
 
   const fetchAccounts = async () => {
     try {
@@ -55,7 +63,7 @@ export default function Accounts() {
       })
       setAccounts(response.data.content || [])
     } catch (err) {
-      setError(getErrorMessage(err, 'Khong the tai danh sach tai khoan.'))
+      setError(getErrorMessage(err, 'Không thể tải danh sách tài khoản.'))
     } finally {
       setLoading(false)
     }
@@ -64,6 +72,28 @@ export default function Accounts() {
   useEffect(() => {
     fetchAccounts()
   }, [])
+
+  const editingAccount = useMemo(
+    () => accounts.find((account) => account.id === editingAccountId),
+    [accounts, editingAccountId],
+  )
+
+  const openEditModal = (account) => {
+    setEditingAccountId(account.id)
+    setForm({
+      username: account.username || '',
+      password: '',
+      role: account.role || 'STAFF',
+      status: account.status || 'ACTIVE',
+    })
+    setFormError('')
+  }
+
+  const closeEditModal = () => {
+    setEditingAccountId(null)
+    setForm(defaultForm)
+    setFormError('')
+  }
 
   const toggleStatus = async (account) => {
     const nextStatus = account.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
@@ -75,14 +105,14 @@ export default function Accounts() {
       })
       setAccounts((prev) => prev.map((item) => (item.id === account.id ? response.data : item)))
     } catch (err) {
-      window.alert(getErrorMessage(err, 'Cap nhat trang thai tai khoan that bai.'))
+      window.alert(getErrorMessage(err, 'Cập nhật trạng thái tài khoản thất bại.'))
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDelete = async (account) => {
-    if (!window.confirm(`Ban co chac chan muon xoa tai khoan ${account.username}?`)) {
+    if (!window.confirm(`Bạn có chắc muốn xóa tài khoản "${account.username}"?`)) {
       return
     }
 
@@ -90,56 +120,40 @@ export default function Accounts() {
       setSubmitting(true)
       await api.delete(`/accounts/${account.id}`)
       setAccounts((prev) => prev.filter((item) => item.id !== account.id))
-      window.alert('Xoa tai khoan thanh cong.')
     } catch (err) {
-      window.alert(getErrorMessage(err, 'Xoa tai khoan that bai.'))
+      window.alert(getErrorMessage(err, 'Xóa tài khoản thất bại.'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleEdit = async (account) => {
-    const payload = {}
+  const handleEditSubmit = async (event) => {
+    event.preventDefault()
 
-    while (true) {
-      const usernameResult = askValue('Username', account.username, true)
-      if (usernameResult.cancelled) return
-      if (usernameResult.retry) continue
-      payload.username = usernameResult.value
-      break
-    }
-
-    while (true) {
-      const roleResult = askValue(`Role (${ROLE_OPTIONS.join('/')})`, account.role, true)
-      if (roleResult.cancelled) return
-      if (roleResult.retry) continue
-      payload.role = roleResult.value
-      break
-    }
-
-    while (true) {
-      const statusResult = askValue(`Trang thai (${STATUS_OPTIONS.join('/')})`, account.status, true)
-      if (statusResult.cancelled) return
-      if (statusResult.retry) continue
-      payload.status = statusResult.value
-      break
-    }
-
-    const passwordResult = askValue('Password moi (de trong neu giu nguyen)', '', false)
-    if (passwordResult.cancelled) {
+    if (!form.username.trim()) {
+      setFormError('Username không được để trống.')
       return
-    }
-    if (passwordResult.value) {
-      payload.password = passwordResult.value
     }
 
     try {
       setSubmitting(true)
-      const response = await api.put(`/accounts/${account.id}`, payload)
-      setAccounts((prev) => prev.map((item) => (item.id === account.id ? response.data : item)))
-      window.alert('Cap nhat tai khoan thanh cong.')
+      setFormError('')
+
+      const payload = {
+        username: form.username.trim(),
+        role: form.role,
+        status: form.status,
+      }
+
+      if (form.password.trim()) {
+        payload.password = form.password
+      }
+
+      const response = await api.put(`/accounts/${editingAccountId}`, payload)
+      setAccounts((prev) => prev.map((item) => (item.id === editingAccountId ? response.data : item)))
+      closeEditModal()
     } catch (err) {
-      window.alert(getErrorMessage(err, 'Cap nhat tai khoan that bai.'))
+      setFormError(getErrorMessage(err, 'Cập nhật tài khoản thất bại.'))
     } finally {
       setSubmitting(false)
     }
@@ -159,8 +173,8 @@ export default function Accounts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Quan ly tai khoan</h1>
-          <p className="text-slate-500 dark:text-slate-400">Phan quyen, quan ly trang thai va bao mat nguoi dung he thong.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Quản lý tài khoản</h1>
+          <p className="text-slate-500 dark:text-slate-400">Phân quyền, quản lý trạng thái và bảo mật người dùng hệ thống.</p>
         </div>
       </div>
 
@@ -175,7 +189,7 @@ export default function Accounts() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Tim theo ten hoac ten dang nhap..."
+            placeholder="Tìm theo tên nhân viên hoặc tài khoản..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
@@ -187,7 +201,7 @@ export default function Accounts() {
             onChange={(e) => setSelectedRole(e.target.value)}
             className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            <option value="">Tat ca quyen</option>
+            <option value="">Tất cả quyền</option>
             <option value="ADMIN">ADMIN</option>
             <option value="MANAGER">MANAGER</option>
             <option value="RECEPTIONIST">RECEPTIONIST</option>
@@ -199,11 +213,11 @@ export default function Accounts() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           <div className="md:col-span-2 lg:col-span-3 rounded-2xl border border-slate-200 bg-white/80 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
-            Dang tai du lieu...
+            Đang tải dữ liệu...
           </div>
         ) : filteredAccounts.length === 0 ? (
           <div className="md:col-span-2 lg:col-span-3 rounded-2xl border border-slate-200 bg-white/80 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
-            Khong co tai khoan nao phu hop.
+            Không có tài khoản nào phù hợp.
           </div>
         ) : (
           filteredAccounts.map((account) => (
@@ -214,7 +228,7 @@ export default function Accounts() {
                     {(account.employeeName || account.username || '?').charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white leading-none mb-1">{account.employeeName || 'Chua lien ket nhan vien'}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white leading-none mb-1">{account.employeeName || 'Chưa liên kết nhân viên'}</h3>
                     <p className="text-xs text-slate-500 font-mono mt-1">@{account.username}</p>
                   </div>
                 </div>
@@ -223,29 +237,29 @@ export default function Accounts() {
                     {account.role}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider ${account.status === 'ACTIVE' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                    {account.status === 'ACTIVE' ? 'Hoat dong' : 'Da khoa'}
+                    {account.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 flex items-center gap-1.5"><Shield size={14} /> Bao mat:</span>
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">Quyen {account.role}</span>
+                  <span className="text-slate-500 flex items-center gap-1.5"><Shield size={14} /> Bảo mật:</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">Quyền {account.role}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 flex items-center gap-1.5"><Power size={14} /> Nhan vien:</span>
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">{account.employeeId ? `#${account.employeeId}` : '--'}</span>
+                  <span className="text-slate-500 flex items-center gap-1.5"><Power size={14} /> Đăng nhập cuối:</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{formatLastLogin(account.lastLoginAt)}</span>
                 </div>
               </div>
 
               <div className="mt-6 flex gap-2">
                 <button
-                  onClick={() => handleEdit(account)}
+                  onClick={() => openEditModal(account)}
                   disabled={submitting}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
                 >
-                  <Edit2 size={14} /> Sua
+                  <Edit2 size={14} /> Sửa
                 </button>
                 <button
                   onClick={() => toggleStatus(account)}
@@ -253,7 +267,7 @@ export default function Accounts() {
                   className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-60 ${account.status === 'ACTIVE' ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-500/10' : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-500/10'}`}
                 >
                   {account.status === 'ACTIVE' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
-                  {account.status === 'ACTIVE' ? 'Khoa' : 'Mo'}
+                  {account.status === 'ACTIVE' ? 'Khóa' : 'Mở'}
                 </button>
                 <button
                   onClick={() => handleDelete(account)}
@@ -267,6 +281,72 @@ export default function Accounts() {
           ))
         )}
       </div>
+
+      {editingAccountId && document.getElementById('main-layout') && createPortal(
+        <div className="absolute inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" style={{ zIndex: 9999 }}>
+          <div className="absolute inset-0" onClick={closeEditModal} />
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 relative z-10 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Cập nhật tài khoản</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  {editingAccount?.employeeName || editingAccount?.username}
+                </p>
+              </div>
+              <button onClick={closeEditModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {formError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+                  {formError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tài khoản</span>
+                  <input value={form.username} onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))} className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mật khẩu mới</span>
+                  <input type="password" value={form.password} onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))} placeholder="Để trống nếu không đổi" className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Quyền</span>
+                  <select value={form.role} onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))} className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    {ROLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Trạng thái</span>
+                  <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    {STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </label>
+                <div className="space-y-2 md:col-span-2">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Đăng nhập lần cuối</span>
+                  <div className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300">
+                    {formatLastLogin(editingAccount?.lastLoginAt)}
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 flex gap-3 shrink-0">
+              <button onClick={closeEditModal} type="button" className="flex-1 py-3 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition-colors">
+                Hủy
+              </button>
+              <button type="submit" onClick={handleEditSubmit} disabled={submitting} className="flex-1 py-3 font-bold text-white bg-primary hover:bg-primary-dark disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed rounded-2xl transition-colors shadow-lg shadow-primary/30 disabled:shadow-none">
+                {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.getElementById('main-layout'),
+      )}
     </div>
   )
 }

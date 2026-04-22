@@ -9,12 +9,12 @@ import java.time.LocalTime;
 @Data
 public class CreateShiftRequest
 {
-    @NotBlank(message = "Ten ca khong duoc de trong")
+    @NotBlank(message = "Tên ca không được để trống")
     private String name;
 
-    @NotNull(message = "Gio bat dau khong duoc de trong")
+    @NotNull(message = "Giờ bắt đầu không được để trống")
     private LocalTime startTime;
 
-    @NotNull(message = "Gio ket thuc khong duoc de trong")
+    @NotNull(message = "Giờ kết thúc không được để trống")
     private LocalTime endTime;
 }

@@ -4,6 +4,8 @@ import com.karaoke.backend.entity.Account;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Builder
 public class AccountResponse
@@ -14,4 +16,5 @@ public class AccountResponse
     private Account.AccountStatus status;
     private Integer employeeId;
     private String employeeName;
+    private LocalDateTime lastLoginAt;
 }

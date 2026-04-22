@@ -52,6 +52,6 @@ public class EmployeeController
             @PathVariable Integer id
     ) {
         employeeService.deleteEmployee(id);
-        return Map.of("message", "Xoa nhan vien thanh cong");
+        return Map.of("message", "Xóa nhân viên thành công");
     }
 }

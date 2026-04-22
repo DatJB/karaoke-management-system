@@ -11,6 +11,7 @@ import org.springframework.security.authentication.*;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -37,6 +38,9 @@ public class AuthServiceImpl implements AuthService {
 
         Account acc = repo.findByUsername(request.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Lỗi hệ thống: Không lấy được thông tin tài khoản!"));
+
+        acc.setLastLoginAt(LocalDateTime.now());
+        repo.save(acc);
 
         Integer employeeId = (acc.getEmployee() != null)
                 ? acc.getEmployee().getId()

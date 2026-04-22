@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 public class UpdateAccountStatusRequest
 {
-    @NotNull(message = "Trang thai khong duoc de trong")
+    @NotNull(message = "Trạng thái không được để trống")
     private Account.AccountStatus status;
 }

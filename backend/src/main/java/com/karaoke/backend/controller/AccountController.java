@@ -53,6 +53,6 @@ public class AccountController
             @PathVariable Integer id
     ) {
         accountManagementService.deleteAccount(id);
-        return Map.of("message", "Xoa tai khoan thanh cong");
+        return Map.of("message", "Xóa tài khoản thành công");
     }
 }

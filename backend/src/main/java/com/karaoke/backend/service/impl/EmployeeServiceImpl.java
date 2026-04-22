@@ -105,7 +105,7 @@ public class EmployeeServiceImpl implements EmployeeService
     private Employee getEmployee(Integer id)
     {
         return employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nhan vien voi id = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên với id = " + id));
     }
 
     private void validateEmployeeCode(String code, Integer employeeId)
@@ -121,7 +121,7 @@ public class EmployeeServiceImpl implements EmployeeService
 
         if (exists)
         {
-            throw new IllegalArgumentException("Ma nhan vien da ton tai");
+            throw new IllegalArgumentException("Mã nhân viên đã tồn tại");
         }
     }
 
@@ -133,7 +133,7 @@ public class EmployeeServiceImpl implements EmployeeService
 
         if (exists)
         {
-            throw new IllegalArgumentException("Username da ton tai");
+            throw new IllegalArgumentException("Tài khoản đã tồn tại");
         }
     }
 

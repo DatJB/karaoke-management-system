@@ -8,13 +8,13 @@ import java.time.LocalDate;
 @Data
 public class CreateScheduleRequest
 {
-    @NotNull(message = "Employee id khong duoc de trong")
+    @NotNull(message = "ID nhân viên không được để trống")
     private Integer employeeId;
 
-    @NotNull(message = "Shift id khong duoc de trong")
+    @NotNull(message = "ID ca làm không được để trống")
     private Integer shiftId;
 
-    @NotNull(message = "Ngay lam khong duoc de trong")
+    @NotNull(message = "Ngày làm không được để trống")
     private LocalDate workDate;
 
     private String note;

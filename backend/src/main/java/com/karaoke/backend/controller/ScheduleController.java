@@ -43,7 +43,7 @@ public class ScheduleController
             @Valid @RequestBody DeleteScheduleRequest request
     ) {
         scheduleService.deleteSchedule(request);
-        return Map.of("message", "Xoa phan cong thanh cong");
+        return Map.of("message", "Xóa phân công thành công");
     }
 
     @GetMapping("/me")

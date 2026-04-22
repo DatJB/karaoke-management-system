@@ -82,14 +82,14 @@ public class AccountManagementServiceImpl implements AccountManagementService
     private Account getAccount(Integer id)
     {
         return accountRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tai khoan voi id = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản với id = " + id));
     }
 
     private void validateUsername(String username, Integer accountId)
     {
         if (accountRepository.existsByUsernameAndIdNot(username, accountId))
         {
-            throw new IllegalArgumentException("Username da ton tai");
+            throw new IllegalArgumentException("Tài khoản đã tồn tại");
         }
     }
 
@@ -108,6 +108,7 @@ public class AccountManagementServiceImpl implements AccountManagementService
                 .status(account.getStatus())
                 .employeeId(employee != null ? employee.getId() : null)
                 .employeeName(employee != null ? employee.getName() : null)
+                .lastLoginAt(account.getLastLoginAt())
                 .build();
     }
 }

@@ -68,14 +68,14 @@ public class ShiftServiceImpl implements ShiftService
     private Shift getShift(Integer id)
     {
         return shiftRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay ca voi id = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca với id = " + id));
     }
 
     private void validateShiftTime(LocalTime startTime, LocalTime endTime)
     {
         if (startTime.equals(endTime))
         {
-            throw new IllegalArgumentException("Gio bat dau va gio ket thuc khong duoc trung nhau");
+            throw new IllegalArgumentException("Giờ bắt đầu và Giờ kết thúc không được trùng nhau");
         }
     }
 

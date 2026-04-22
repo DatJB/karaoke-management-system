@@ -8,12 +8,12 @@ import lombok.Data;
 @Data
 public class UpdateAccountRequest
 {
-    @NotBlank(message = "Username khong duoc de trong")
+    @NotBlank(message = "Tài khoản không được để trống")
     private String username;
 
     private String password;
 
-    @NotNull(message = "Role khong duoc de trong")
+    @NotNull(message = "Quyền không được để trống")
     private Account.Role role;
 
     private Account.AccountStatus status;

@@ -49,6 +49,6 @@ public class ShiftController
             @PathVariable Integer id
     ) {
         shiftService.deleteShift(id);
-        return Map.of("message", "Xoa ca thanh cong");
+        return Map.of("message", "Xóa ca làm thành công");
     }
 }

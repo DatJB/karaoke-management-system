@@ -3,6 +3,7 @@ package com.karaoke.backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -34,6 +35,9 @@ public class Account {
 
     @Enumerated(EnumType.STRING)
     private AccountStatus status = AccountStatus.ACTIVE;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @OneToMany(mappedBy = "account")
     private List<Notification> notifications;

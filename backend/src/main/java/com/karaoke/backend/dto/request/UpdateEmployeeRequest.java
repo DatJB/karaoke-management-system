@@ -11,18 +11,18 @@ import java.math.BigDecimal;
 @Data
 public class UpdateEmployeeRequest
 {
+    @NotBlank(message = "Mã nhân viên không được để trống")
     private String code;
 
-    @NotBlank(message = "Ten nhan vien khong duoc de trong")
+    @NotBlank(message = "Tên nhân viên không được để trống")
     private String name;
 
     private String phone;
 
-    @DecimalMin(value = "0.0", inclusive = true, message = "Luong co ban phai >= 0")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Lương cơ bản phải >= 0")
     private BigDecimal baseSalary;
 
-    @NotNull(message = "Luong theo gio khong duoc de trong")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Luong theo gio phai > 0")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Lương theo giờ phải >= 0")
     private BigDecimal salaryPerHour;
 
     private Employee.EmployeeStatus status;
