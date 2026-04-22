@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.karaoke.backend.util.TimeUtils;
+
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,17 +39,15 @@ public class RoomPriceSpecialServiceImpl implements RoomPriceSpecialService {
         List<RoomPriceSpecialResponse> responses = new ArrayList<>();
         
         for (RoomPriceSpecialRequest request : requests) {
-            // Kiểm tra chồng lấn với các giá đặc biệt khác của phòng này trong cùng ngày (bao gồm cả các bản ghi đang chuẩn bị thêm trong request này)
+            // Kiểm tra chồng lấn với các giá đặc biệt khác của phòng này trong cùng ngày
             List<RoomPriceSpecial> existingSpecials = roomPriceSpecialRepository.findByRoomIdAndSpecialDate(roomId, request.getSpecialDate());
-            
-            // 1. Check với database
+
             for (RoomPriceSpecial existing : existingSpecials) {
-                if (isTimeOverlap(request.getStartTime(), request.getEndTime(), existing.getStartTime(), existing.getEndTime())) {
+                if (TimeUtils.isTimeOverlap(request.getStartTime(), request.getEndTime(), existing.getStartTime(), existing.getEndTime())) {
                     throw new IllegalStateException("Khung giờ đặc biệt " + request.getStartTime() + "-" + request.getEndTime() + " bị chồng lấn với dữ liệu đã có.");
                 }
             }
 
-            // 2. Kiểm tra lịch đặt phòng hiện có
             validateNoBookingOverlap(roomId, request.getSpecialDate(), request.getStartTime(), request.getEndTime());
 
             RoomPriceSpecial specialPrice = RoomPriceSpecial.builder()
@@ -78,15 +78,15 @@ public class RoomPriceSpecialServiceImpl implements RoomPriceSpecialService {
         RoomPriceSpecial specialPrice = roomPriceSpecialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Special price not found with id: " + id));
 
-        // Kiểm tra chồng lấn (trừ chính nó)
+        // Kiểm tra chồng lấn
         List<RoomPriceSpecial> existingSpecials = roomPriceSpecialRepository.findByRoomIdAndSpecialDate(specialPrice.getRoom().getId(), request.getSpecialDate());
         for (RoomPriceSpecial existing : existingSpecials) {
-            if (!existing.getId().equals(id) && isTimeOverlap(request.getStartTime(), request.getEndTime(), existing.getStartTime(), existing.getEndTime())) {
+            if (!existing.getId().equals(id) && TimeUtils.isTimeOverlap(request.getStartTime(), request.getEndTime(), existing.getStartTime(), existing.getEndTime())) {
                 throw new IllegalStateException("Khung giờ đặc biệt bị chồng lấn.");
             }
         }
 
-        // Kiểm tra lịch đặt phòng cho khung giờ CŨ và MỚI
+        // Kiểm tra lịch đặt phòng cho khung giờ cũ và mới
         validateNoBookingOverlap(specialPrice.getRoom().getId(), specialPrice.getSpecialDate(), specialPrice.getStartTime(), specialPrice.getEndTime());
         if (!request.getStartTime().equals(specialPrice.getStartTime()) || !request.getEndTime().equals(specialPrice.getEndTime()) || !request.getSpecialDate().equals(specialPrice.getSpecialDate())) {
             validateNoBookingOverlap(specialPrice.getRoom().getId(), request.getSpecialDate(), request.getStartTime(), request.getEndTime());
@@ -122,22 +122,14 @@ public class RoomPriceSpecialServiceImpl implements RoomPriceSpecialService {
                 LocalTime bStart = b.getReservationTime().toLocalTime();
                 LocalTime bEnd = b.getExpectedCheckoutTime().toLocalTime();
 
-                if (isTimeOverlap(start, end, bStart, bEnd)) {
+                if (TimeUtils.isTimeOverlap(start, end, bStart, bEnd)) {
                     throw new IllegalStateException("Không thể thay đổi/xóa giá đặc biệt do đã có lịch đặt phòng vào lúc " + b.getReservationTime());
                 }
             }
         }
     }
 
-    private boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2) {
-        if (start1.isAfter(end1)) {
-            return isTimeOverlap(start1, LocalTime.MAX, start2, end2) || isTimeOverlap(LocalTime.MIN, end1, start2, end2);
-        }
-        if (start2.isAfter(end2)) {
-            return isTimeOverlap(start1, end1, start2, LocalTime.MAX) || isTimeOverlap(start1, end1, LocalTime.MIN, end2);
-        }
-        return start1.isBefore(end2) && start2.isBefore(end1);
-    }
+    // isTimeOverlap has been moved to TimeUtils
 
     private RoomPriceSpecialResponse mapToResponse(RoomPriceSpecial entity) {
         return RoomPriceSpecialResponse.builder()

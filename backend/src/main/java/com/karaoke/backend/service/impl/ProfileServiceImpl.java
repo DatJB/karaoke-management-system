@@ -37,7 +37,6 @@ public class ProfileServiceImpl implements ProfileService {
         List<ProfileResponse.ActivityInfo> activities = new ArrayList<>();
 
         if (account.getRole() == Account.Role.STAFF) {
-            // Staff activities: assigned rooms
             if (account.getEmployee() != null) {
                 List<BookingRoomEmployee> assignments = bookingRoomEmployeeRepository.findByEmployeeId(account.getEmployee().getId());
                 activities = assignments.stream()
@@ -50,7 +49,6 @@ public class ProfileServiceImpl implements ProfileService {
                         .collect(Collectors.toList());
             }
         } else if (account.getRole() == Account.Role.RECEPTIONIST || account.getRole() == Account.Role.ADMIN || account.getRole() == Account.Role.MANAGER) {
-            // Receptionist/Admin/Manager activities: recent bookings
             List<Booking> bookings = bookingRepository.findTop5ByOrderByCreatedAtDesc();
             activities = bookings.stream()
                     .map(b -> ProfileResponse.ActivityInfo.builder()

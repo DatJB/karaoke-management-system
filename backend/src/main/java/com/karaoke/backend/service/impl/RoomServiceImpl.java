@@ -69,7 +69,7 @@ public class RoomServiceImpl implements RoomService {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found with id: " + id));
         
-        // Tránh xóa phòng đang có khách hoặc có lịch đặt
+        // Xóa phòng đang có khách hoặc có lịch đặt
         if (room.getStatus() != Room.RoomStatus.AVAILABLE && room.getStatus() != Room.RoomStatus.MAINTENANCE) {
              throw new IllegalStateException("Không thể xóa phòng đang có khách hoặc đang được đặt.");
         }

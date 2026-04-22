@@ -44,11 +44,9 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Not enough stock for product: " + product.getName());
         }
 
-        // Update stock
         product.setStock(product.getStock() - request.getQuantity());
         productRepository.save(product);
 
-        // Check if item already exists in invoice
         InvoiceItem item = invoice.getItems().stream()
                 .filter(i -> i.getProduct().getId().equals(product.getId()))
                 .findFirst()
@@ -92,7 +90,6 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Not enough stock to increase quantity");
         }
 
-        // Update stock
         product.setStock(product.getStock() - diff);
         productRepository.save(product);
 
@@ -116,7 +113,6 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Item does not belong to this room's invoice");
         }
 
-        // Return stock
         Product product = item.getProduct();
         product.setStock(product.getStock() + item.getQuantity());
         productRepository.save(product);
@@ -144,8 +140,7 @@ public class OrderServiceImpl implements OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
         invoice.setServicePrice(servicePrice);
-        
-        // Recalculate total price: RoomPrice + ServicePrice - Discount
+
         BigDecimal total = invoice.getRoomPrice().add(servicePrice).subtract(invoice.getDiscount());
         invoice.setTotalPrice(total);
         

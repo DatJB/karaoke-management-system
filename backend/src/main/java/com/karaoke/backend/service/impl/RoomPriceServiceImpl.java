@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.karaoke.backend.util.TimeUtils;
+
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,10 +67,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found with id: " + roomId));
 
-        // 1. Lấy toàn bộ giá hiện tại để kiểm tra chồng lấn nội bộ (vì giờ vẫn có thể đổi)
         List<RoomPrice> allRoomPrices = new ArrayList<>(roomPriceRepository.findByRoomId(roomId));
-
-        // 2. Lấy các Booking đang hoạt động
+        
         List<Booking.BookingStatus> activeStatuses = Arrays.asList(
                 Booking.BookingStatus.BOOKED, 
                 Booking.BookingStatus.CHECKED_IN
@@ -76,7 +76,6 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         List<Booking> activeBookings = bookingRepository.findByRoomIdAndStatuses(roomId, activeStatuses);
 
         for (WeeklyPriceRequest req : requests) {
-            // Ràng buộc: Bắt buộc có ID
             if (req.getId() == null) {
                 throw new IllegalArgumentException("ID khung giá là bắt buộc.");
             }
@@ -88,7 +87,6 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 throw new IllegalArgumentException("Khung giá ID " + req.getId() + " không thuộc về phòng này.");
             }
 
-            // Điền dữ liệu thiếu từ DB để so sánh
             if (req.getStartTime() == null) req.setStartTime(priceToUpdate.getStartTime());
             if (req.getEndTime() == null) req.setEndTime(priceToUpdate.getEndTime());
             if (req.getDayOfWeek() == null) req.setDayOfWeek(priceToUpdate.getDayOfWeek());
@@ -100,10 +98,10 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                                 !req.getDayOfWeek().equals(priceToUpdate.getDayOfWeek());
             
             if (isChanged) {
-                // A. Kiểm tra chồng lấn nội bộ (với khung giờ MỚI định đổi)
+                //Kiểm tra chồng lấn
                 validateNoInternalPriceOverlap(req, allRoomPrices, priceToUpdate.getId());
 
-                // B. Kiểm tra Booking
+                //Kiểm tra Booking
                 validateNoBookingOverlap(priceToUpdate.getDayOfWeek(), priceToUpdate.getStartTime(), priceToUpdate.getEndTime(), activeBookings);
                 if (!req.getStartTime().equals(priceToUpdate.getStartTime()) || !req.getEndTime().equals(priceToUpdate.getEndTime()) || !req.getDayOfWeek().equals(priceToUpdate.getDayOfWeek())) {
                     validateNoBookingOverlap(req.getDayOfWeek(), req.getStartTime(), req.getEndTime(), activeBookings);
@@ -123,7 +121,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     private void validateNoInternalPriceOverlap(WeeklyPriceRequest req, List<RoomPrice> allPrices, Integer excludeId) {
         for (RoomPrice p : allPrices) {
             if (p.getDayOfWeek() == req.getDayOfWeek() && !p.getId().equals(excludeId)) {
-                if (isTimeOverlap(req.getStartTime(), req.getEndTime(), p.getStartTime(), p.getEndTime())) {
+                if (TimeUtils.isTimeOverlap(req.getStartTime(), req.getEndTime(), p.getStartTime(), p.getEndTime())) {
                     throw new IllegalStateException("Khung giờ định sửa (" + req.getStartTime() + " - " + req.getEndTime() + 
                         ") chồng lấn với khung giá" + " (" + p.getStartTime() + " - " + p.getEndTime() + ") của phòng này.");
                 }
@@ -145,7 +143,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             if (b.getReservationTime().getDayOfWeek().name().startsWith(dayOfWeek.name())) {
                 LocalTime bStart = b.getReservationTime().toLocalTime();
                 LocalTime bEnd = b.getExpectedCheckoutTime().toLocalTime();
-                if (isTimeOverlap(start, end, bStart, bEnd)) {
+                if (TimeUtils.isTimeOverlap(start, end, bStart, bEnd)) {
                     throw new IllegalStateException("Không thể đổi khung giờ/giá " + dayOfWeek + " (" + start + "-" + end + 
                         ") do có lịch đặt phòng của khách vào lúc " + b.getReservationTime());
                 }
@@ -153,17 +151,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         }
     }
 
-    private boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2) {
-        if (start1.isAfter(end1)) {
-            return isTimeOverlap(start1, LocalTime.MAX, start2, end2) || 
-                   isTimeOverlap(LocalTime.MIN, end1, start2, end2);
-        }
-        if (start2.isAfter(end2)) {
-            return isTimeOverlap(start1, end1, start2, LocalTime.MAX) || 
-                   isTimeOverlap(start1, end1, LocalTime.MIN, end2);
-        }
-        return start1.isBefore(end2) && start2.isBefore(end1);
-    }
+    // isTimeOverlap has been moved to TimeUtils
 
     @Override
     @Transactional
@@ -172,7 +160,6 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         List<RoomPrice> allPrices = roomPriceRepository.findAll();
         List<RoomPrice> modifiedRecords = new java.util.ArrayList<>();
 
-        // 1. Cập nhật trên memory
         for (com.karaoke.backend.dto.request.TimeSlotUpdateRequest req : requests) {
             for (RoomPrice p : allPrices) {
                 if (p.getStartTime().equals(req.getOldStartTime()) && p.getEndTime().equals(req.getOldEndTime())) {
@@ -183,13 +170,16 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             }
         }
 
-        // 2. Validate chồng lấn nội bộ trong cùng 1 phòng, cùng 1 ngày
-        for (int i = 0; i < allPrices.size(); i++) {
-            RoomPrice p1 = allPrices.get(i);
-            for (int j = i + 1; j < allPrices.size(); j++) {
-                RoomPrice p2 = allPrices.get(j);
-                if (p1.getRoom().getId().equals(p2.getRoom().getId()) && p1.getDayOfWeek() == p2.getDayOfWeek()) {
-                    if (isTimeOverlap(p1.getStartTime(), p1.getEndTime(), p2.getStartTime(), p2.getEndTime())) {
+        // Optimize validation by grouping by room and day to avoid O(N^2) on the whole table
+        java.util.Map<String, List<RoomPrice>> groupedPrices = allPrices.stream()
+                .collect(Collectors.groupingBy(p -> p.getRoom().getId() + "-" + p.getDayOfWeek()));
+
+        for (List<RoomPrice> group : groupedPrices.values()) {
+            for (int i = 0; i < group.size(); i++) {
+                RoomPrice p1 = group.get(i);
+                for (int j = i + 1; j < group.size(); j++) {
+                    RoomPrice p2 = group.get(j);
+                    if (TimeUtils.isTimeOverlap(p1.getStartTime(), p1.getEndTime(), p2.getStartTime(), p2.getEndTime())) {
                         throw new IllegalStateException("Khung giờ sau khi sửa bị chồng lấn: (" + 
                              p1.getStartTime() + " - " + p1.getEndTime() + ") đè lên (" + 
                              p2.getStartTime() + " - " + p2.getEndTime() + ")");

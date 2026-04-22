@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Package } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { getProducts } from '../api/product'
+import { getProducts, createProduct, updateProduct, deleteProduct } from '../api/product'
+import ProductModal from '../components/products/ProductModal'
+import toast from 'react-hot-toast'
 
 export default function Products() {
   const { user } = useAuth()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  
+  const emptyForm = { code: '', name: '', category: 'DRINK', price: '', stock: '' }
+  const [modal, setModal] = useState(null)
+  const [formData, setFormData] = useState(emptyForm)
+  const [selectedProduct, setSelectedProduct] = useState(null)
 
   useEffect(() => {
     fetchProducts()
@@ -16,13 +23,84 @@ export default function Products() {
     try {
       setLoading(true)
       const data = await getProducts()
-      // API returns a Page object, so products are in data.content
       setProducts(data.content || [])
     } catch (error) {
       console.error("Failed to fetch products:", error)
+      toast.error('Lỗi khi tải danh sách hàng hóa')
     } finally {
       setLoading(false)
     }
+  }
+
+  const openAdd = () => {
+    setFormData(emptyForm)
+    setSelectedProduct(null)
+    setModal('add')
+  }
+
+  const openEdit = (product) => {
+    setFormData({
+      code: product.code,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stock: product.stock
+    })
+    setSelectedProduct(product)
+    setModal('edit')
+  }
+
+  const handleSubmit = async () => {
+    if (!formData.code || !formData.name || !formData.price || !formData.stock) {
+      toast.error('Vui lòng điền đủ thông tin')
+      return
+    }
+
+    try {
+      const payload = {
+        code: formData.code,
+        name: formData.name,
+        category: formData.category,
+        price: Number(formData.price),
+        stock: Number(formData.stock)
+      }
+
+      if (modal === 'add') {
+        await createProduct(payload)
+        toast.success('Thêm sản phẩm thành công')
+      } else {
+        await updateProduct(selectedProduct.id, payload)
+        toast.success('Cập nhật sản phẩm thành công')
+      }
+      setModal(null)
+      fetchProducts()
+    } catch (error) {
+      console.error(error)
+      const msg = error.response?.data?.message || 'Có lỗi xảy ra'
+      toast.error(msg)
+    }
+  }
+
+  const handleDelete = (id) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <p className="font-medium text-slate-900 dark:text-white">Bạn có chắc muốn xóa sản phẩm này?</p>
+        <div className="flex gap-2 justify-end">
+          <button className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg" onClick={() => toast.dismiss(t.id)}>Hủy</button>
+          <button className="px-3 py-1.5 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg" onClick={async () => {
+            toast.dismiss(t.id)
+            try {
+              await deleteProduct(id)
+              toast.success('Đã xóa sản phẩm')
+              fetchProducts()
+            } catch (error) {
+              console.error(error)
+              toast.error('Có lỗi xảy ra khi xóa')
+            }
+          }}>Xóa</button>
+        </div>
+      </div>
+    ), { duration: Infinity })
   }
 
   return (
@@ -33,7 +111,7 @@ export default function Products() {
           <p className="text-slate-500 dark:text-slate-400">Danh mục đồ uống, thức ăn và theo dõi số lượng tồn kho.</p>
         </div>
         {user.role !== 'STAFF' && (
-          <button className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-primary/20">
+          <button onClick={openAdd} className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-primary/20">
             <Plus size={18} />
             Nhập thêm hàng
           </button>
@@ -87,8 +165,8 @@ export default function Products() {
                   {user.role !== 'STAFF' && (
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
-                        <button className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"><Edit2 size={16} /></button>
-                        <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg dark:hover:bg-red-500/10 transition-all"><Trash2 size={16} /></button>
+                        <button onClick={() => openEdit(product)} className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(product.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg dark:hover:bg-red-500/10 transition-all"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   )}
@@ -98,6 +176,14 @@ export default function Products() {
           </table>
         </div>
       </div>
+      
+      <ProductModal 
+        modal={modal}
+        formData={formData}
+        setFormData={setFormData}
+        closeModal={() => setModal(null)}
+        handleSubmit={handleSubmit}
+      />
     </div>
   )
 }

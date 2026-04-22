@@ -56,7 +56,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 
-        // Check code uniqueness if changed
         if (!product.getCode().equals(request.getCode()) && productRepository.findByCode(request.getCode()).isPresent()) {
             throw new IllegalArgumentException("Product code already exists: " + request.getCode());
         }
@@ -75,8 +74,7 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(Integer id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-        
-        // Check if product is used in any invoice items before deleting
+
         if (product.getInvoiceItems() != null && !product.getInvoiceItems().isEmpty()) {
             throw new IllegalStateException("Cannot delete product as it is linked to existing invoices.");
         }
