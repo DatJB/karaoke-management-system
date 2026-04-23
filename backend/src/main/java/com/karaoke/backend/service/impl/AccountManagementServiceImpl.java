@@ -3,6 +3,7 @@ package com.karaoke.backend.service.impl;
 import com.karaoke.backend.dto.request.UpdateAccountRequest;
 import com.karaoke.backend.dto.request.UpdateAccountStatusRequest;
 import com.karaoke.backend.dto.response.AccountResponse;
+import com.karaoke.backend.dto.response.NewPageResponse;
 import com.karaoke.backend.dto.response.PageResponse;
 import com.karaoke.backend.entity.Account;
 import com.karaoke.backend.entity.Employee;
@@ -28,13 +29,13 @@ public class AccountManagementServiceImpl implements AccountManagementService
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public PageResponse<AccountResponse> getAccounts(int page, int size, String search)
+    public NewPageResponse<AccountResponse> getAccounts(int page, int size, String search)
     {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         Page accountPage = accountRepository.search(search, pageable)
                 .map(this::toResponse);
 
-        return PageResponse.from(accountPage);
+        return NewPageResponse.from(accountPage);
     }
 
     @Override

@@ -1,8 +1,8 @@
 package com.karaoke.backend.service.impl;
 
 import com.karaoke.backend.dto.response.*;
-import com.karaoke.backend.entity.Customer;
-import com.karaoke.backend.entity.Invoice;
+import com.karaoke.backend.entity.*;
+import com.karaoke.backend.exception.BusinessException;
 import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.InvoiceRepository;
 import com.karaoke.backend.service.InvoiceService;
@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -104,30 +106,48 @@ public class InvoiceServiceImpl implements InvoiceService
         boolean isUnpaid = invoice.getStatus().name().equals("UNPAID");
         LocalDateTime now = LocalDateTime.now();
 
-        // Xử lý Tiền phòng hát (Live vs Đóng băng)
-        List<InvoiceRoomDetailDto> roomDetails = invoice.getRoomDetails().stream().map(ird -> {
-            InvoiceRoomDetailDto dto = new InvoiceRoomDetailDto();
-            dto.setId(ird.getId());
-            dto.setBookingRoomId(ird.getBookingRoom().getId());
-            dto.setRoomName(ird.getBookingRoom().getRoom().getName());
-            dto.setCheckinTime(ird.getBookingRoom().getCheckinTime());
+        List<InvoiceRoomDetailDto> roomDetails = new java.util.ArrayList<>();
+        BigDecimal totalRoomPriceCalc = BigDecimal.ZERO;
+        BigDecimal totalServicePriceCalc = BigDecimal.ZERO;
 
-            if (isUnpaid) {
-                // Nhánh 1: LIVE (Tạm tính)
-                dto.setCheckoutTime(now);
-                PricingCalculationResult calcResult = pricingEngine.calculateRoomPriceWithSlices(
-                        ird.getBookingRoom().getRoom().getId(), dto.getCheckinTime(), now
-                );
-                dto.setHoursUsed(calcResult.getTotalHours());
-                dto.setTotalAmount(calcResult.getTotalCost());
-                dto.setPriceBreakdowns(calcResult.getSlices());
-            } else {
-                // Nhánh 2: LỊCH SỬ (Đã thanh toán)
+        if (isUnpaid) {
+            for (com.karaoke.backend.entity.BookingRoom br : invoice.getBooking().getBookingRooms()) {
+                if (br.getStatus().name().equals("CANCELLED") || br.getStatus().name().equals("RESERVED")) continue;
+
+                InvoiceRoomDetailDto dto = new InvoiceRoomDetailDto();
+                dto.setId(null);
+                dto.setBookingRoomId(br.getId());
+                dto.setRoomName(br.getRoom().getName());
+                dto.setCheckinTime(br.getCheckinTime());
+                
+                LocalDateTime endCalc = br.getCheckoutTime() != null ? br.getCheckoutTime() : now;
+                dto.setCheckoutTime(endCalc);
+
+                if (br.getCheckinTime() != null) {
+                    PricingCalculationResult calcResult = pricingEngine.calculateRoomPriceWithSlices(
+                            br.getRoom().getId(), br.getCheckinTime(), endCalc
+                    );
+                    dto.setHoursUsed(calcResult.getTotalHours());
+                    dto.setTotalAmount(calcResult.getTotalCost());
+                    dto.setPriceBreakdowns(calcResult.getSlices());
+                } else {
+                    dto.setHoursUsed(BigDecimal.ZERO);
+                    dto.setTotalAmount(BigDecimal.ZERO);
+                }
+                totalRoomPriceCalc = totalRoomPriceCalc.add(dto.getTotalAmount() != null ? dto.getTotalAmount() : BigDecimal.ZERO);
+                roomDetails.add(dto);
+            }
+        } else {
+            roomDetails = invoice.getRoomDetails().stream().map(ird -> {
+                InvoiceRoomDetailDto dto = new InvoiceRoomDetailDto();
+                dto.setId(ird.getId());
+                dto.setBookingRoomId(ird.getBookingRoom().getId());
+                dto.setRoomName(ird.getBookingRoom().getRoom().getName());
+                dto.setCheckinTime(ird.getBookingRoom().getCheckinTime());
                 dto.setCheckoutTime(ird.getBookingRoom().getCheckoutTime());
                 dto.setHoursUsed(ird.getHoursUsed());
                 dto.setTotalAmount(ird.getTotalPrice());
 
-                // Móc dữ liệu từ bảng InvoiceRoomDetailSlice đưa lên UI
                 List<TimeSliceDto> historicalSlices = ird.getSlices().stream().map(s -> {
                     TimeSliceDto sliceDto = new TimeSliceDto();
                     sliceDto.setStartTime(s.getStartTime());
@@ -138,9 +158,9 @@ public class InvoiceServiceImpl implements InvoiceService
                     return sliceDto;
                 }).collect(Collectors.toList());
                 dto.setPriceBreakdowns(historicalSlices);
-            }
-            return dto;
-        }).collect(Collectors.toList());
+                return dto;
+            }).collect(Collectors.toList());
+        }
         response.setRoomDetails(roomDetails);
 
         // Xử lý Món ăn / Dịch vụ
@@ -160,6 +180,92 @@ public class InvoiceServiceImpl implements InvoiceService
         }).collect(Collectors.toList());
         response.setItemDetails(itemDetails);
 
+        if (isUnpaid) {
+            response.setTotalRoomPrice(totalRoomPriceCalc);
+            for (InvoiceItemDetail item : itemDetails) {
+                if (item.getTotalAmount() != null) {
+                    totalServicePriceCalc = totalServicePriceCalc.add(item.getTotalAmount());
+                }
+            }
+            response.setTotalServicePrice(totalServicePriceCalc);
+            
+            BigDecimal discount = response.getDiscount() != null ? response.getDiscount() : BigDecimal.ZERO;
+            BigDecimal finalPrice = totalRoomPriceCalc.add(totalServicePriceCalc).subtract(discount);
+            if (finalPrice.compareTo(BigDecimal.ZERO) < 0) {
+                finalPrice = BigDecimal.ZERO;
+            }
+            response.setTotalPrice(finalPrice);
+        }
+
         return response;
+    }
+
+    @Transactional
+    @Override
+    public void markAsPaid(Integer invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn!"));
+
+        if (invoice.getStatus() == Invoice.InvoiceStatus.PAID)
+        {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        BigDecimal totalRoomPrice = BigDecimal.ZERO;
+        for (com.karaoke.backend.entity.BookingRoom br : invoice.getBooking().getBookingRooms()) {
+            if (br.getStatus().name().equals("CANCELLED") || br.getStatus().name().equals("RESERVED")) continue;
+
+            LocalDateTime endCalc = br.getCheckoutTime() != null ? br.getCheckoutTime() : now;
+            
+            InvoiceRoomDetail ird = new InvoiceRoomDetail();
+            ird.setInvoice(invoice);
+            ird.setBookingRoom(br);
+            
+            if (br.getCheckinTime() != null) {
+                PricingCalculationResult calcResult = pricingEngine.calculateRoomPriceWithSlices(
+                        br.getRoom().getId(), br.getCheckinTime(), endCalc
+                );
+                ird.setHoursUsed(calcResult.getTotalHours());
+                ird.setTotalPrice(calcResult.getTotalCost());
+                
+                for (com.karaoke.backend.dto.response.TimeSliceDto sliceDto : calcResult.getSlices()) {
+                    InvoiceRoomDetailSlice slice = new InvoiceRoomDetailSlice();
+                    slice.setInvoiceRoomDetail(ird);
+                    slice.setStartTime(sliceDto.getStartTime());
+                    slice.setEndTime(sliceDto.getEndTime());
+                    slice.setPricePerHour(sliceDto.getPricePerHour());
+                    slice.setHoursUsed(sliceDto.getHours());
+                    slice.setTotalAmount(sliceDto.getAmount());
+                    ird.getSlices().add(slice);
+                }
+            } else {
+                ird.setHoursUsed(BigDecimal.ZERO);
+                ird.setTotalPrice(BigDecimal.ZERO);
+            }
+            totalRoomPrice = totalRoomPrice.add(ird.getTotalPrice() != null ? ird.getTotalPrice() : BigDecimal.ZERO);
+            invoice.getRoomDetails().add(ird);
+        }
+
+        BigDecimal totalServicePrice = BigDecimal.ZERO;
+        for (InvoiceItem item : invoice.getItems()) {
+            totalServicePrice = totalServicePrice.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
+        }
+
+        invoice.setRoomPrice(totalRoomPrice);
+        invoice.setServicePrice(totalServicePrice);
+
+        BigDecimal discount = invoice.getDiscount() != null ? invoice.getDiscount() : BigDecimal.ZERO;
+        BigDecimal finalPrice = totalRoomPrice.add(totalServicePrice).subtract(discount);
+        if (finalPrice.compareTo(BigDecimal.ZERO) < 0) {
+            finalPrice = BigDecimal.ZERO;
+        }
+        invoice.setTotalPrice(finalPrice);
+
+        invoice.setStatus(Invoice.InvoiceStatus.PAID);
+        invoice.setPaidAt(now);
+
+        invoiceRepository.save(invoice);
     }
 }

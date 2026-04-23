@@ -2,12 +2,8 @@ package com.karaoke.backend.util;
 
 import java.time.LocalTime;
 
-public class TimeUtils {
-
-    /**
-     * Checks if two time ranges overlap.
-     * Handles cases where the time range spans across midnight (start > end).
-     */
+public class TimeUtils
+{
     public static boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2) {
         if (start1.isAfter(end1)) {
             return isTimeOverlap(start1, LocalTime.MAX, start2, end2) || 

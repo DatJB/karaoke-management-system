@@ -9,3 +9,8 @@ export const updatePassword = async (passwordData) => {
     const response = await api.put("/profile/password", passwordData);
     return response.data;
 };
+
+export const getServingRooms = async () => {
+    const response = await api.get("/me/serving-rooms");
+    return response.data;
+};

@@ -2,6 +2,7 @@ package com.karaoke.backend.service.impl;
 
 import com.karaoke.backend.dto.request.LoginRequest;
 import com.karaoke.backend.entity.Account;
+import com.karaoke.backend.exception.BusinessException;
 import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.AccountRepository;
 import com.karaoke.backend.security.JwtService;
@@ -25,6 +26,13 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Map<String, String> login(LoginRequest request)
     {
+        Account acc = repo.findByUsername(request.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("Lỗi hệ thống: Không lấy được thông tin tài khoản!"));
+
+        if ("INACTIVE".equals(acc.getStatus().name())) {
+            throw new BusinessException("Tài khoản của bạn đã bị khóa.\n Vui lòng liên hệ Quản lý!");
+        }
+
         try {
             authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -35,9 +43,6 @@ public class AuthServiceImpl implements AuthService {
         } catch (AuthenticationException e) {
             throw new BadCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác!");
         }
-
-        Account acc = repo.findByUsername(request.getUsername())
-                .orElseThrow(() -> new ResourceNotFoundException("Lỗi hệ thống: Không lấy được thông tin tài khoản!"));
 
         acc.setLastLoginAt(LocalDateTime.now());
         repo.save(acc);

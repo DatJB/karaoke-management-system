@@ -3,10 +3,12 @@ package com.karaoke.backend.controller;
 import com.karaoke.backend.dto.request.CreateEmployeeRequest;
 import com.karaoke.backend.dto.request.UpdateEmployeeRequest;
 import com.karaoke.backend.dto.response.EmployeeResponse;
+import com.karaoke.backend.dto.response.NewPageResponse;
 import com.karaoke.backend.dto.response.PageResponse;
 import com.karaoke.backend.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,13 +22,15 @@ public class EmployeeController
     private final EmployeeService employeeService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    public PageResponse<EmployeeResponse> getEmployees(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search
-    ) {
-        return employeeService.getEmployees(page, size, search);
+    @PreAuthorize("hasAnyRole('RECEPTIONIST', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<NewPageResponse<EmployeeResponse>> getEmployees(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(required = false) String search,
+        @RequestParam(required = false) String role)
+    {
+        NewPageResponse<EmployeeResponse> response = employeeService.getEmployees(page, size, search, role);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping

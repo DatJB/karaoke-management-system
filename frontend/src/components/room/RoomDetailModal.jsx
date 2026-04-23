@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom'
 import { X, ArrowLeft, Search, CheckCircle2, Pencil, Trash2, Loader2, ArrowRight, Minus, Plus } from 'lucide-react'
 import { mockCustomers, mockEmployees, mockProducts } from '../../mock/data'
 import { ROOM_STATUS_COLOR, ROOM_STATUS_LABEL } from './RoomCard'
-import { getRoomDetail } from '../../api/roomApi'
-import { createBooking } from '../../api/bookingApi'
+import ConfirmModal from '../common/ConfirmModal'
+import { getRoomDetail, assignEmployeeToRoom, removeEmployeeFromRoom } from '../../api/roomApi'
+import { createBooking, checkoutSingleRoom } from '../../api/bookingApi'
 import { getAllCustomers } from '../../api/customerApi'
 import { getRoomOrders, addOrderToRoom, updateOrderItem, deleteOrderItem } from '../../api/order'
 import { getProducts } from '../../api/product'
+import { getAllEmployees } from '../../api/employeeApi'
 import toast from 'react-hot-toast'
 
 const getRoomPrice = (category) => (category === 'VIP' ? 200000 : 100000)
@@ -99,6 +101,56 @@ export default function RoomDetailModal({
   const [orderItems, setOrderItems] = useState([])
   const [availableProducts, setAvailableProducts] = useState([])
   const [addingQuantities, setAddingQuantities] = useState({})
+  const [assignedStaff, setAssignedStaff] = useState([])
+  const [availableEmployees, setAvailableEmployees] = useState([])
+  const [loadingEmployees, setLoadingEmployees] = useState(false)
+  const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false)
+
+  const currentRoom = detailedRoom || selectedRoom
+
+  const handleCheckout = async () => {
+    if (!currentRoom?.bookingId || !currentRoom?.id) {
+      toast.error('Phòng chưa có thông tin đặt trước/nhận phòng hợp lệ.');
+      return;
+    }
+    try {
+      setLoading(true);
+      await checkoutSingleRoom(currentRoom.bookingId, currentRoom.id);
+      toast.success('Đã thanh toán và trả phòng thành công!');
+      onSuccess?.();
+      onClose();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi trả phòng');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (bookingStep === 2) {
+      if (bookingAction === 'ASSIGN_STAFF' && currentRoom?.staffList) {
+        setAssignedStaff(currentRoom.staffList)
+      } else {
+        setAssignedStaff([])
+      }
+
+      const fetchEmployees = async () => {
+        try {
+          setLoadingEmployees(true)
+          const response = await getAllEmployees({ page: 0, size: 100 })
+          const content = response.content || response;
+          const list = Array.isArray(content) ? content : [];
+          setAvailableEmployees(list.filter(emp => emp.role === 'STAFF'))
+        } catch (error) {
+          console.error('Failed to fetch employees:', error)
+        } finally {
+          setLoadingEmployees(false)
+        }
+      }
+      fetchEmployees()
+    }
+  }, [bookingStep, bookingAction, currentRoom])
 
   const fetchOrders = () => {
     if (selectedRoom?.id) {
@@ -117,7 +169,6 @@ export default function RoomDetailModal({
 
   if (!selectedRoom || !document.getElementById('main-layout')) return null
 
-  const currentRoom = detailedRoom || selectedRoom
 
   const booking = currentRoom.bookingId ? {
     customer_name: currentRoom.customerName,
@@ -269,34 +320,111 @@ export default function RoomDetailModal({
               <h3 className="text-xl font-bold text-slate-900 dark:text-white flex-1">Chọn nhân viên phục vụ</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
+              {bookingAction === 'ASSIGN_STAFF' && assignedStaff.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
+                    Nhân viên đang phục vụ
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    {assignedStaff.map(staff => (
+                      <div key={staff.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold text-slate-900 dark:text-white">{staff.name}</span>
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono w-fit">ID:{staff.id}</span>
+                        </div>
+                        <button 
+                          onClick={() => setAssignedStaff(prev => prev.filter(s => s.id !== staff.id))}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">
-                Phân công nhân viên phụ trách cho <strong>{currentRoom.name}</strong> (Có thể chọn nhiều)
+                {bookingAction === 'ASSIGN_STAFF' ? 'Thêm nhân viên phụ trách' : `Phân công nhân viên phụ trách cho ${currentRoom.name}`} (Có thể chọn nhiều)
               </label>
               <div className="grid grid-cols-1 gap-2">
-                {mockEmployees.filter(emp => emp.role === 'STAFF').map(emp => (
-                  <label key={emp.id} className="cursor-pointer flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary/50 transition-colors text-sm text-slate-700 dark:text-slate-300 shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white">{emp.name}</span>
-                        <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono">ID:{emp.id}</span>
+                {loadingEmployees ? (
+                  <div className="py-8 text-center text-slate-500 text-sm flex flex-col items-center gap-2">
+                    <Loader2 className="animate-spin text-primary" size={24} />
+                    Đang tải danh sách nhân viên...
+                  </div>
+                ) : availableEmployees.length === 0 ? (
+                  <div className="py-8 text-center text-slate-500 text-sm">
+                    Không có nhân viên nào sẵn sàng.
+                  </div>
+                ) : availableEmployees.map(emp => {
+                  const isAssigned = assignedStaff.some(s => s.id === emp.id);
+                  if (bookingAction === 'ASSIGN_STAFF' && isAssigned) return null;
+                  return (
+                    <label key={emp.id} className="cursor-pointer flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary/50 transition-colors text-sm text-slate-700 dark:text-slate-300 shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-white">{emp.name}</span>
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono">ID:{emp.id}</span>
+                        </div>
+                        <span className={`text-[10px] w-fit px-2 py-0.5 rounded-full font-bold tracking-wide uppercase ${emp.status === 'AVAILABLE' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : emp.status === 'BUSY' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-400'}`}>
+                          {emp.status === 'AVAILABLE' ? 'SẴN SÀNG' : emp.status === 'BUSY' ? 'ĐANG BẬN' : 'NGHỈ PHÉP'}
+                        </span>
                       </div>
-                      <span className={`text-[10px] w-fit px-2 py-0.5 rounded-full font-bold tracking-wide uppercase ${emp.status === 'AVAILABLE' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : emp.status === 'BUSY' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-400'}`}>
-                        {emp.status === 'AVAILABLE' ? 'SẴN SÀNG' : emp.status === 'BUSY' ? 'ĐANG BẬN' : 'NGHỈ PHÉP'}
-                      </span>
-                    </div>
-                    <input type="checkbox" className="w-5 h-5 text-primary bg-slate-50 border-slate-300 rounded focus:ring-primary dark:bg-slate-900 dark:border-slate-600 cursor-pointer" value={emp.id} />
-                  </label>
-                ))}
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 text-primary bg-slate-50 border-slate-300 rounded focus:ring-primary dark:bg-slate-900 dark:border-slate-600 cursor-pointer" 
+                        value={emp.id} 
+                        checked={isAssigned}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAssignedStaff(prev => [...prev, emp])
+                          } else {
+                            setAssignedStaff(prev => prev.filter(s => s.id !== emp.id))
+                          }
+                        }}
+                      />
+                    </label>
+                  )
+                })}
               </div>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 shrink-0">
-              <button onClick={() => {
-                const customer = mockCustomers.find(c => c.id === selectedCustomerId)
-                const actionText = bookingAction === 'CHECKIN' ? 'nhận phòng' : bookingAction === 'COMBO' ? 'đặt combo' : bookingAction === 'ASSIGN_STAFF' ? 'điều chỉnh nhân viên' : 'đặt trước'
-                alert(`Đã hoàn tất ${actionText} tại ${currentRoom.name}${customer ? ` cho khách hàng: ${customer.name}` : ''}`)
-                setBookingAction(null); onClose(); setSelectedCustomerId(null); setBookingStep(1)
-              }} className="w-full px-6 py-3 font-bold text-white bg-green-500 hover:bg-green-600 rounded-xl transition-colors shadow-lg shadow-green-500/30">
-                Xác nhận {bookingAction === 'CHECKIN' ? 'nhận phòng' : bookingAction === 'COMBO' ? 'đặt combo' : bookingAction === 'ASSIGN_STAFF' ? 'điều chỉnh nhân viên' : 'đặt trước'}
+              <button disabled={saving} onClick={async () => {
+                if (bookingAction === 'ASSIGN_STAFF') {
+                  try {
+                    setSaving(true);
+                    const originalStaffIds = currentRoom?.staffList?.map(s => s.id) || [];
+                    const newStaffIds = assignedStaff.map(s => s.id);
+                    
+                    const toAdd = newStaffIds.filter(id => !originalStaffIds.includes(id));
+                    const toRemove = originalStaffIds.filter(id => !newStaffIds.includes(id));
+                    
+                    const promises = [
+                      ...toAdd.map(id => assignEmployeeToRoom(currentRoom.id, id)),
+                      ...toRemove.map(id => removeEmployeeFromRoom(currentRoom.id, id))
+                    ];
+                    
+                    await Promise.all(promises);
+                    toast.success('Đã cập nhật nhân viên phụ trách phòng thành công!');
+                    onSuccess?.();
+                    onClose();
+                    setBookingAction(null);
+                    setBookingStep(1);
+                  } catch (error) {
+                    toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật nhân viên');
+                    console.error(error);
+                  } finally {
+                    setSaving(false);
+                  }
+                } else {
+                  const customer = mockCustomers.find(c => c.id === selectedCustomerId)
+                  const actionText = bookingAction === 'CHECKIN' ? 'nhận phòng' : bookingAction === 'COMBO' ? 'đặt combo' : 'đặt trước'
+                  alert(`Đã hoàn tất ${actionText} tại ${currentRoom.name}${customer ? ` cho khách hàng: ${customer.name}` : ''}`)
+                  setBookingAction(null); onClose(); setSelectedCustomerId(null); setBookingStep(1)
+                }
+              }} className="w-full px-6 py-3 font-bold text-white bg-green-500 hover:bg-green-600 rounded-xl transition-colors shadow-lg shadow-green-500/30 disabled:opacity-50">
+                {saving ? <Loader2 className="animate-spin mx-auto" size={20} /> : `Xác nhận ${bookingAction === 'CHECKIN' ? 'nhận phòng' : bookingAction === 'COMBO' ? 'đặt combo' : bookingAction === 'ASSIGN_STAFF' ? 'điều chỉnh nhân viên' : 'đặt trước'}`}
               </button>
             </div>
           </>
@@ -502,7 +630,7 @@ export default function RoomDetailModal({
                     {user.role !== 'STAFF' && (
                       <button onClick={() => { setBookingAction('ASSIGN_STAFF'); setBookingStep(2) }} className="w-full px-6 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-700">Điều chỉnh nhân viên</button>
                     )}
-                    <button className="w-full px-6 py-2.5 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors shadow-lg shadow-primary/30">Thanh toán / Trả phòng</button>
+                    <button onClick={() => setShowCheckoutConfirm(true)} className="w-full px-6 py-2.5 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors shadow-lg shadow-primary/30">Thanh toán / Trả phòng</button>
                   </div>
                 )
               )}
@@ -519,6 +647,16 @@ export default function RoomDetailModal({
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showCheckoutConfirm}
+        onClose={() => setShowCheckoutConfirm(false)}
+        onConfirm={handleCheckout}
+        title="Xác nhận thanh toán"
+        message={`Bạn có chắc chắn muốn thanh toán và trả phòng ${currentRoom?.name || ''} không? Thao tác này không thể hoàn tác.`}
+        confirmText="Thanh toán ngay"
+        type="primary"
+      />
     </div>,
     document.getElementById('main-layout')
   )

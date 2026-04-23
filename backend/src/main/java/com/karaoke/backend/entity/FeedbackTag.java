@@ -7,4 +7,11 @@ public class FeedbackTag
 {
     private String aspect;
     private String sentiment;
+
+    public static FeedbackTag valueOf(String text)
+    {
+        FeedbackTag tag = new FeedbackTag();
+        tag.aspect = text;
+        return tag;
+    }
 }

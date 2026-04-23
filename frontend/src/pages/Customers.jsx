@@ -4,8 +4,10 @@ import { getAllCustomers, createCustomer, updateCustomer, deleteCustomer, getCus
 import CustomerFormModal from '../components/customer/CustomerFormModal'
 import ConfirmModal from '../components/common/ConfirmModal'
 import BookingHistoryModal from '../components/customer/BookingHistoryModal'
+import { useAuth } from '../context/AuthContext'
 
 export default function Customers() {
+  const { user } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
@@ -146,7 +148,9 @@ export default function Customers() {
                   <td className="px-6 py-4">
                     <div className="flex justify-end items-center gap-1">
                       <button onClick={() => handleOpenEdit(cus)} className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Sửa"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDeleteClick(cus.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Xóa"><Trash2 size={16} /></button>
+                      {user?.role !== 'RECEPTIONIST' && (
+                        <button onClick={() => handleDeleteClick(cus.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Xóa"><Trash2 size={16} /></button>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">

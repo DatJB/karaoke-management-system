@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Edit2, Trash2, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Search } from 'lucide-react'
 import api from '../api/axios'
 
 const STATUS_LABELS = {
@@ -40,6 +40,16 @@ export default function Employees() {
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(defaultForm)
   const [formError, setFormError] = useState('')
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('ALL')
+
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((emp) => {
+      const matchSearch = search ? (emp.name?.toLowerCase().includes(search.toLowerCase()) || emp.phone?.includes(search)) : true;
+      const matchRole = roleFilter === 'ALL' ? true : emp.role === roleFilter;
+      return matchSearch && matchRole;
+    })
+  }, [employees, search, roleFilter])
 
   const fetchEmployees = async () => {
     try {
@@ -204,19 +214,38 @@ export default function Employees() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Quản lý nhân sự</h1>
           <p className="text-slate-500 dark:text-slate-400">Danh sách nhân viên và tình trạng làm việc.</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          disabled={submitting}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-primary/20 disabled:opacity-60"
-        >
-          <Plus size={18} />
-          Thêm nhân viên.
-        </button>
+        <div className="flex flex-wrap gap-4 w-full xl:w-auto">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Tìm theo tên, SĐT..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none focus:border-primary dark:text-white shadow-sm transition-all text-sm"
+            />
+          </div>
+          <select 
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none focus:border-primary dark:text-white shadow-sm transition-all text-sm font-medium"
+          >
+            <option value="ALL">Tất cả vai trò</option>
+            {ROLE_OPTIONS.map(role => <option key={role} value={role}>{role}</option>)}
+          </select>
+          <button
+            onClick={openCreateModal}
+            disabled={submitting}
+            className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 shrink-0 font-bold disabled:opacity-60 text-sm"
+          >
+            <Plus size={18} /> <span className="hidden sm:inline">Thêm nhân viên</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -246,14 +275,14 @@ export default function Employees() {
                     Đang tải dữ liệu...
                   </td>
                 </tr>
-              ) : employees.length === 0 ? (
+              ) : filteredEmployees.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Chưa có nhân viên nào.
+                    Không tìm thấy nhân viên nào phù hợp.
                   </td>
                 </tr>
               ) : (
-                employees.map((emp) => (
+                filteredEmployees.map((emp) => (
                   <tr key={emp.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-semibold text-slate-900 dark:text-white">{emp.name}</div>

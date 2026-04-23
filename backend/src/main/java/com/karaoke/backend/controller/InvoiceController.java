@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/invoices")
@@ -40,5 +41,20 @@ public class InvoiceController
 
         InvoiceDetailResponse invoiceDetail = invoiceService.getInvoiceDetail(id);
         return ResponseEntity.ok(invoiceDetail);
+    }
+
+    @PatchMapping("/{id}/pay")
+    @PreAuthorize("hasAnyRole('REEPTIONIST', 'ADMIN', 'STAFF')")
+    public ResponseEntity<?> confirmPayment(@PathVariable Integer id)
+    {
+        try {
+            invoiceService.markAsPaid(id);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Xác nhận thanh toán thành công cho hóa đơn #" + id,
+                    "status", "PAID"
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

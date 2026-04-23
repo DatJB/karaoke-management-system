@@ -3,6 +3,7 @@ package com.karaoke.backend.controller;
 import com.karaoke.backend.dto.request.UpdateAccountRequest;
 import com.karaoke.backend.dto.request.UpdateAccountStatusRequest;
 import com.karaoke.backend.dto.response.AccountResponse;
+import com.karaoke.backend.dto.response.NewPageResponse;
 import com.karaoke.backend.dto.response.PageResponse;
 import com.karaoke.backend.service.AccountManagementService;
 import jakarta.validation.Valid;
@@ -21,7 +22,7 @@ public class AccountController
 
     @GetMapping
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
-    public PageResponse<AccountResponse> getAccounts(
+    public NewPageResponse<AccountResponse> getAccounts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search

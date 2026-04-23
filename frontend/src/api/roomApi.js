@@ -24,3 +24,13 @@ export const deleteRoom = async (id) => {
     const response = await api.delete(`/rooms/${id}`);
     return response.data;
 };
+
+export const assignEmployeeToRoom = async (roomId, employeeId) => {
+    const response = await api.post(`/rooms/${roomId}/employees/${employeeId}`);
+    return response.data;
+};
+
+export const removeEmployeeFromRoom = async (roomId, employeeId) => {
+    const response = await api.delete(`/rooms/${roomId}/employees/${employeeId}`);
+    return response.data;
+};

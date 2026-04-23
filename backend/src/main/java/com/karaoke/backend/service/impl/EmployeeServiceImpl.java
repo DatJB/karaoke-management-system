@@ -3,9 +3,11 @@ package com.karaoke.backend.service.impl;
 import com.karaoke.backend.dto.request.CreateEmployeeRequest;
 import com.karaoke.backend.dto.request.UpdateEmployeeRequest;
 import com.karaoke.backend.dto.response.EmployeeResponse;
+import com.karaoke.backend.dto.response.NewPageResponse;
 import com.karaoke.backend.dto.response.PageResponse;
 import com.karaoke.backend.entity.Account;
 import com.karaoke.backend.entity.Employee;
+import com.karaoke.backend.exception.BusinessException;
 import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.AccountRepository;
 import com.karaoke.backend.repository.EmployeeRepository;
@@ -30,13 +32,24 @@ public class EmployeeServiceImpl implements EmployeeService
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public PageResponse<EmployeeResponse> getEmployees(int page, int size, String search)
+    public NewPageResponse<EmployeeResponse> getEmployees(int page, int size, String search, String roleStr)
     {
+        Account.Role roleEnum = null;
+        if (roleStr != null && !roleStr.trim().isEmpty())
+        {
+            try {
+                roleEnum = Account.Role.valueOf(roleStr.toUpperCase());
+            } catch (IllegalArgumentException e)
+            {
+                throw new BusinessException("Phân quyền không hợp lệ!");
+            }
+        }
+
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        Page<EmployeeResponse> employeePage = employeeRepository.search(search, pageable)
+        Page<EmployeeResponse> employeePage = employeeRepository.searchEmployees(search, roleEnum, pageable)
                 .map(this::toResponse);
 
-        return PageResponse.from(employeePage);
+        return NewPageResponse.from(employeePage);
     }
 
     @Override

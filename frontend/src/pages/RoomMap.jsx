@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { getAllRooms, createRoom, updateRoom, deleteRoom } from '../api/roomApi'
+import { getServingRooms } from '../api/profile'
 import { useAuth } from '../context/AuthContext'
 import RoomCard from '../components/room/RoomCard'
 import RoomDetailModal from '../components/room/RoomDetailModal'
@@ -35,20 +36,46 @@ export default function RoomMap() {
   const fetchRooms = async () => {
     try {
       setLoading(true)
-      const params = {
-        page,
-        size: 5,
-        category: categoryFilter !== 'ALL' ? categoryFilter : undefined,
-        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+      
+      if (filter === 'ASSIGNED') {
+        const response = await getServingRooms()
+        const mappedRooms = (response || []).map(r => ({
+          id: r.roomId,
+          name: r.roomName,
+          category: r.roomCategory,
+          size: r.roomSize,
+          status: r.roomStatus,
+          bookingId: r.bookingId,
+          customerName: r.customerName,
+          checkinTime: r.checkInTime,
+          staffList: [{ name: user.name }]
+        }))
+        const filtered = mappedRooms.filter(r => {
+          if (categoryFilter !== 'ALL' && r.category !== categoryFilter) return false
+          if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
+          if (capacityFilter === 'SMALL' && r.size >= 10) return false
+          if (capacityFilter === 'MEDIUM' && (r.size < 10 || r.size > 20)) return false
+          if (capacityFilter === 'LARGE' && r.size <= 20) return false
+          return true
+        })
+        setRooms(filtered)
+        setTotalPages(1)
+      } else {
+        const params = {
+          page,
+          size: 5,
+          category: categoryFilter !== 'ALL' ? categoryFilter : undefined,
+          status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        }
+
+        if (capacityFilter === 'SMALL') params.maxSize = 9
+        else if (capacityFilter === 'MEDIUM') { params.minSize = 10; params.maxSize = 20 }
+        else if (capacityFilter === 'LARGE') params.minSize = 21
+
+        const response = await getAllRooms(params)
+        setRooms(response.data || [])
+        setTotalPages(response.totalPages || 1)
       }
-
-      if (capacityFilter === 'SMALL') params.maxSize = 9
-      else if (capacityFilter === 'MEDIUM') { params.minSize = 10; params.maxSize = 20 }
-      else if (capacityFilter === 'LARGE') params.minSize = 21
-
-      const response = await getAllRooms(params)
-      setRooms(response.data || [])
-      setTotalPages(response.totalPages || 1)
     } catch (error) {
       console.error('Failed to fetch rooms:', error)
     } finally {
@@ -58,11 +85,11 @@ export default function RoomMap() {
 
   useEffect(() => {
     setPage(1)
-  }, [categoryFilter, capacityFilter, statusFilter])
+  }, [categoryFilter, capacityFilter, statusFilter, filter])
 
   useEffect(() => {
     fetchRooms()
-  }, [page, categoryFilter, capacityFilter, statusFilter])
+  }, [page, categoryFilter, capacityFilter, statusFilter, filter])
 
   const handleSaveRoom = async (data) => {
     if (editingRoom) {
@@ -99,16 +126,7 @@ export default function RoomMap() {
     setIsFormOpen(true)
   }
 
-  const isAssignedRoom = (room) => room.staffList?.some(s => s.name === user.name)
 
-  const displayedRooms = rooms.filter(r => {
-    if (filter === 'ASSIGNED' && !isAssignedRoom(r)) return false
-    if (categoryFilter !== 'ALL' && r.category !== categoryFilter) return false
-    if (capacityFilter === 'SMALL' && r.size >= 10) return false
-    if (capacityFilter === 'MEDIUM' && (r.size < 10 || r.size > 20)) return false
-    if (capacityFilter === 'LARGE' && r.size <= 20) return false
-    return true
-  })
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-12rem)]">
@@ -194,7 +212,7 @@ export default function RoomMap() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {displayedRooms.map(room => {
+            {rooms.map(room => {
               const booking = room.bookingId ? {
                 customer_name: room.customerName,
                 checkin_time: room.checkinTime,
