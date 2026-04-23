@@ -14,7 +14,7 @@ export default function PayrollExpandedRow({ data }) {
             <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
               <Clock size={15} className="text-primary" /> Chi tiết ca phục vụ phòng
             </h4>
-            {data.serviceHistories && data.serviceHistories.length > 0 ? (
+            {data.serviceHistory && data.serviceHistory.length > 0 ? (
               <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm max-w-4xl">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
@@ -28,9 +28,9 @@ export default function PayrollExpandedRow({ data }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.serviceHistories.map((s, idx) => {
-                      const checkinDate = new Date(s.checkinTime);
-                      const checkoutDate = new Date(s.checkoutTime);
+                    {data.serviceHistory.map((s, idx) => {
+                      const checkinDate = new Date(s.checkInTime);
+                      const checkoutDate = new Date(s.checkOutTime);
                       return (
                         <tr key={idx} className="border-t border-slate-100 dark:border-slate-800">
                           <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{checkinDate.toLocaleDateString('vi-VN')}</td>

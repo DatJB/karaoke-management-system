@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Search, FileText, Eye, Download, Trash2, Plus, Loader2 } from 'lucide-react'
+import { Calendar, Search, FileText, Eye, Download, Trash2, Plus, Loader2, BadgeCheck, DollarSign } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import payrollPeriodApi from '../api/payrollPeriodApi'
+
+const STATUS_CONFIG = {
+  DRAFT:    { label: 'Nháp',     cls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400' },
+  APPROVED: { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+  PAID:     { label: 'Đã trả',   cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
+}
 
 export default function PayrollList() {
   const [payrolls, setPayrolls]     = useState([])
@@ -36,6 +42,22 @@ export default function PayrollList() {
       } catch (error) {
         alert("Không thể xóa kỳ lương. Có thể nó đã được duyệt.")
       }
+    }
+  }
+
+  const handleQuickStatus = async (id, currentStatus) => {
+    const transitions = { DRAFT: 'APPROVED', APPROVED: 'PAID' }
+    const newStatus = transitions[currentStatus]
+    if (!newStatus) return
+    const confirmMsg = newStatus === 'APPROVED'
+      ? 'Duyệt toàn bộ bảng lương kỳ này?'
+      : 'Xác nhận đã thanh toán lương kỳ này?'
+    if (!window.confirm(confirmMsg)) return
+    try {
+      await payrollPeriodApi.updateStatus(id, newStatus)
+      setPayrolls(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p))
+    } catch (error) {
+      alert('Không thể thay đổi trạng thái: ' + (error.message || ''))
     }
   }
 
@@ -151,12 +173,8 @@ export default function PayrollList() {
                     {row.createdBy?.username || 'Admin'}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      row.status === 'APPROVED' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
-                      row.status === 'PAID' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' :
-                      'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
-                    }`}>
-                      {row.status}
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${STATUS_CONFIG[row.status]?.cls || ''}`}>
+                      {STATUS_CONFIG[row.status]?.label || row.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -164,12 +182,28 @@ export default function PayrollList() {
                       <Link to={`/payroll?periodId=${row.id}`} className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
                         <Eye size={16} />
                       </Link>
-                      <button 
-                        onClick={() => handleDelete(row.id)}
-                        className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:bg-red-500/20 border border-red-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xóa kỳ lương">
-                        <Trash2 size={16} />
-                      </button>
-                      <button 
+                      {/* Quick approve button — DRAFT→APPROVED */}
+                      {row.status === 'DRAFT' && (
+                        <button onClick={() => handleQuickStatus(row.id, 'DRAFT')}
+                          className="w-8 h-8 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:bg-green-500/20 border border-green-500/20 flex items-center justify-center transition-colors shadow-sm" title="Duyệt kỳ lương">
+                          <BadgeCheck size={16} />
+                        </button>
+                      )}
+                      {/* Mark as paid — APPROVED→PAID */}
+                      {row.status === 'APPROVED' && (
+                        <button onClick={() => handleQuickStatus(row.id, 'APPROVED')}
+                          className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center transition-colors shadow-sm" title="Đánh dấu đã trả">
+                          <DollarSign size={16} />
+                        </button>
+                      )}
+                      {row.status === 'DRAFT' && (
+                        <button
+                          onClick={() => handleDelete(row.id)}
+                          className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:bg-red-500/20 border border-red-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xóa kỳ lương">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      <button
                         onClick={() => handleExport(row.id)}
                         className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors shadow-sm" title="Tải về Excel">
                         <Download size={16} />

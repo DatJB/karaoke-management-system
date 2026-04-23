@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface PayrollPeriodService {
     PayrollPeriod createPeriod(PayrollPeriodRequestDto requestDto);
+    PayrollPeriod getPeriodById(Integer periodId);
     PayrollPeriod updatePeriodStatus(Integer periodId, PayrollPeriod.PayrollPeriodStatus status);
     void deletePeriod(Integer periodId);
     Page<PayrollDto> getPayrollsByPeriod(Integer periodId, Pageable pageable);

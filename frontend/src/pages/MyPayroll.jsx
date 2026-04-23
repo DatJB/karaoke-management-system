@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { useAuth } from '../context/AuthContext'
 import { ChevronDown, ChevronRight, Clock, TrendingUp, TrendingDown, Wallet, Gift, AlertCircle, Loader2 } from 'lucide-react'
 import payrollPeriodApi from '../api/payrollPeriodApi'
 import PayrollExpandedRow from '../components/payroll/PayrollExpandedRow'
 
 export default function MyPayroll() {
-  const { user } = useAuth()
   const [expandedRow, setExpandedRow] = useState(null)
   const [payrolls, setPayrolls] = useState([])
   const [expandedDataMap, setExpandedDataMap] = useState({})
@@ -38,7 +36,7 @@ export default function MyPayroll() {
     setExpandedRow(id)
     if (!expandedDataMap[id]) {
       try {
-        const res = await payrollPeriodApi.getPeriodDetails(periodId, user.id || 2) // fallback to 2 if user not set
+        const res = await payrollPeriodApi.getMyPeriodDetails(periodId)
         setExpandedDataMap(prev => ({
           ...prev,
           [id]: res.data

@@ -11,6 +11,13 @@ const payrollPeriodApi = {
     },
 
     /**
+     * Get a single payroll period by ID (to read the authoritative status)
+     */
+    getPeriodById(id) {
+        return axiosClient.get(`/payroll-periods/${id}`);
+    },
+
+    /**
      * Create a new payroll period
      */
     createPeriod(data) {
@@ -82,6 +89,14 @@ const payrollPeriodApi = {
         return axiosClient.get('/payroll/me', {
             params: { page, size }
         });
+    },
+
+    /**
+     * Get my detailed payroll for a specific period (Staff/Receptionist only)
+     * Uses the /me/details endpoint — no employeeId needed, resolved from JWT.
+     */
+    getMyPeriodDetails(periodId) {
+        return axiosClient.get(`/payroll-periods/${periodId}/payrolls/me/details`);
     }
 };
 

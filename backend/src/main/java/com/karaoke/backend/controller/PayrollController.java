@@ -53,6 +53,12 @@ public class PayrollController {
     }
 
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @GetMapping("/payroll-periods/{id}")
+    public ResponseEntity<ApiResponse<PayrollPeriod>> getPeriodById(@PathVariable Integer id) {
+        return ResponseEntity.ok(new ApiResponse<>("Success", payrollPeriodService.getPeriodById(id)));
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @PostMapping("/payroll-periods")
     public ResponseEntity<ApiResponse<PayrollPeriod>> createPeriod(@Valid @RequestBody PayrollPeriodRequestDto request) {
         PayrollPeriod period = payrollPeriodService.createPeriod(request);

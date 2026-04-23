@@ -109,7 +109,7 @@ export default function MyBonusPenalty() {
           ))
         ) : displayed.length > 0 ? displayed.map(item => (
           <div
-            key={item.id}
+            key={`${item.itemType}-${item.id}`}
             className={`glass-card border-none bg-white/80 dark:bg-slate-900/80 p-5 flex items-start gap-5 rounded-2xl transition-all hover:shadow-md ${item.itemType === 'BONUS'
               ? 'border-l-4 border-l-green-500'
               : 'border-l-4 border-l-red-500'

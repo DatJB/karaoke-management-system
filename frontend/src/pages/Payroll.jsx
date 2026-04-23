@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Calculator, ChevronDown, ChevronRight, Search, CheckCircle, RotateCcw, Loader2, RefreshCw, Pencil, Save, X } from 'lucide-react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { Calculator, ChevronDown, ChevronRight, Search, CheckCircle, RotateCcw, Loader2, RefreshCw, Pencil, Save, X, BadgeCheck, DollarSign, AlertTriangle } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import PayrollExpandedRow from '../components/payroll/PayrollExpandedRow'
 import payrollPeriodApi from '../api/payrollPeriodApi'
 
 const STATUS_CONFIG = {
-  APPROVED: { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
-  PAID:     { label: 'Đã trả',   cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
-  DRAFT:    { label: 'Nháp',     cls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400' },
+  APPROVED: { label: 'Đã duyệt',   cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+  PAID:     { label: 'Đã trả',     cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
+  DRAFT:    { label: 'Nháp',       cls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400' },
 }
 
 export default function Payroll() {
@@ -18,28 +18,43 @@ export default function Payroll() {
   const [startDate, setStartDate]   = useState('')
   const [endDate, setEndDate]       = useState('')
 
-  const [loading, setLoading]       = useState(false)
-  const [showResults, setShowResults] = useState(false)
-  const [expandedRow, setExpandedRow] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [payrollData, setPayrollData] = useState([])
+  const [loading, setLoading]           = useState(false)
+  const [showResults, setShowResults]   = useState(false)
+  const [expandedRow, setExpandedRow]   = useState(null)
+  const [searchTerm, setSearchTerm]     = useState('')
+  const [payrollData, setPayrollData]   = useState([])
   const [expandedDataMap, setExpandedDataMap] = useState({})
 
+  // Period-level status — loaded from PayrollPeriod entity directly (source of truth)
+  const [currentPeriod, setCurrentPeriod] = useState(null)
+  const [periodStatus, setPeriodStatus]   = useState(null)
+  const [statusLoading, setStatusLoading] = useState(false)
+
   // Inline edit state
-  const [editingId, setEditingId]   = useState(null)
-  const [editForm, setEditForm]     = useState({})
-  const [saving, setSaving]         = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm]   = useState({})
+  const [saving, setSaving]       = useState(false)
 
   useEffect(() => {
     if (currentPeriodId) fetchPayrolls(currentPeriodId)
+    else { setShowResults(false); setPeriodStatus(null); setCurrentPeriod(null); setPayrollData([]) }
   }, [currentPeriodId])
 
   const fetchPayrolls = async (periodId) => {
     setLoading(true)
     try {
-      const res = await payrollPeriodApi.getPayrollsByPeriod(periodId, 0, 200)
-      if (res.data) {
-        setPayrollData(res.data.content)
+      // Fetch both in parallel: period metadata (authoritative status) + child payroll rows
+      const [periodRes, payrollsRes] = await Promise.all([
+        payrollPeriodApi.getPeriodById(periodId),
+        payrollPeriodApi.getPayrollsByPeriod(periodId, 0, 200),
+      ])
+      // PayrollPeriod status is the single source of truth
+      if (periodRes.data) {
+        setCurrentPeriod(periodRes.data)
+        setPeriodStatus(periodRes.data.status)
+      }
+      if (payrollsRes.data) {
+        setPayrollData(payrollsRes.data.content)
         setShowResults(true)
       }
     } catch (error) {
@@ -96,25 +111,37 @@ export default function Payroll() {
     }
   }
 
-  const toggleStatus = async () => {
+  /**
+   * changeStatus — generic transition handler
+   * Allowed: DRAFT→APPROVED, APPROVED→PAID, APPROVED→DRAFT (rollback)
+   */
+  const changeStatus = async (newStatus) => {
     if (!currentPeriodId || payrollData.length === 0) return
-    const isApproved = payrollData[0].status === 'APPROVED'
-    const newStatus  = isApproved ? 'DRAFT' : 'APPROVED'
+    const confirmMsg = {
+      APPROVED: 'Duyệt toàn bộ bảng lương kỳ này? Sau khi duyệt, các phiếu lương sẽ bị khoá chỉnh sửa.',
+      PAID:     'Đánh dấu đã thanh toán lương kỳ này? Thao tác này không thể hoàn tác.',
+      DRAFT:    'Hoàn về trạng thái Nháp? Các phiếu lương sẽ được mở khoá để chỉnh sửa lại.',
+    }
+    if (!window.confirm(confirmMsg[newStatus])) return
+    setStatusLoading(true)
     try {
       await payrollPeriodApi.updateStatus(currentPeriodId, newStatus)
-      fetchPayrolls(currentPeriodId)
+      // Refresh to get updated child statuses
+      await fetchPayrolls(currentPeriodId)
     } catch (error) {
       alert('Không thể thay đổi trạng thái: ' + (error.message || ''))
+    } finally {
+      setStatusLoading(false)
     }
   }
 
   const startEdit = (row) => {
     setEditingId(row.id)
     setEditForm({
-      baseSalary:     row.baseSalary     ?? 0,
+      baseSalary:      row.baseSalary      ?? 0,
       salaryFromHours: row.salaryFromHours ?? 0,
-      totalBonus:     row.totalBonus     ?? 0,
-      totalPenalty:   row.totalPenalty   ?? 0,
+      totalBonus:      row.totalBonus      ?? 0,
+      totalPenalty:    row.totalPenalty    ?? 0,
     })
   }
 
@@ -131,7 +158,6 @@ export default function Payroll() {
     }
   }
 
-  const periodStatus = payrollData[0]?.status
   const filtered = payrollData.filter(r => r.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
@@ -139,8 +165,14 @@ export default function Payroll() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Tính lương</h1>
-          <p className="text-slate-500 dark:text-slate-400">Thiết lập thời gian và chạy tự động tính lương cho nhân viên.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">
+            {currentPeriod ? currentPeriod.name || 'Chi tiết kỳ lương' : 'Tính lương'}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400">
+            {currentPeriod
+              ? `${new Date(currentPeriod.periodStart).toLocaleDateString('vi-VN')} → ${new Date(currentPeriod.periodEnd).toLocaleDateString('vi-VN')}`
+              : 'Thiết lập thời gian và chạy tự động tính lương cho nhân viên.'}
+          </p>
         </div>
 
         {/* New period form */}
@@ -174,22 +206,54 @@ export default function Payroll() {
         {/* Actions for existing period */}
         {currentPeriodId && (
           <div className="flex gap-2 items-center flex-wrap">
+            {/* Recalculate — only in DRAFT */}
             {periodStatus === 'DRAFT' && (
-              <button onClick={handleRecalculate} disabled={loading}
+              <button onClick={handleRecalculate} disabled={loading || statusLoading}
                 className="flex items-center gap-2 px-4 py-2 h-[38px] rounded-lg font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700">
                 <RefreshCw size={16} /> Tính lại
               </button>
             )}
+
+            {/* New period */}
             <button onClick={() => setSearchParams({})}
               className="flex items-center gap-2 px-4 py-2 h-[38px] rounded-lg font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700">
               <Calculator size={16} /> Kỳ mới
             </button>
+
+            {/* ── Status action buttons ── */}
             {payrollData.length > 0 && (
-              <button onClick={toggleStatus}
-                className={`flex items-center gap-2 px-5 py-2 h-[38px] rounded-lg font-bold transition-all shadow-md text-white ${periodStatus === 'APPROVED' ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/20' : 'bg-green-500 hover:bg-green-600 shadow-green-500/20'}`}>
-                {periodStatus === 'APPROVED' ? <RotateCcw size={16} /> : <CheckCircle size={16} />}
-                {periodStatus === 'APPROVED' ? 'Hoàn về nháp' : 'Duyệt toàn bộ'}
-              </button>
+              <>
+                {/* DRAFT → APPROVED */}
+                {periodStatus === 'DRAFT' && (
+                  <button onClick={() => changeStatus('APPROVED')} disabled={statusLoading}
+                    className="flex items-center gap-2 px-5 py-2 h-[38px] rounded-lg font-bold transition-all shadow-md text-white bg-green-500 hover:bg-green-600 shadow-green-500/20 disabled:opacity-60">
+                    {statusLoading ? <Loader2 size={16} className="animate-spin" /> : <BadgeCheck size={16} />}
+                    Duyệt toàn bộ
+                  </button>
+                )}
+
+                {/* APPROVED → PAID  +  APPROVED → DRAFT (rollback) */}
+                {periodStatus === 'APPROVED' && (
+                  <>
+                    <button onClick={() => changeStatus('DRAFT')} disabled={statusLoading}
+                      className="flex items-center gap-2 px-4 py-2 h-[38px] rounded-lg font-bold transition-all text-orange-600 dark:text-orange-400 border border-orange-300 dark:border-orange-500/40 bg-orange-50 dark:bg-orange-500/10 hover:bg-orange-100 dark:hover:bg-orange-500/20 disabled:opacity-60">
+                      <RotateCcw size={16} /> Hoàn về nháp
+                    </button>
+                    <button onClick={() => changeStatus('PAID')} disabled={statusLoading}
+                      className="flex items-center gap-2 px-5 py-2 h-[38px] rounded-lg font-bold transition-all shadow-md text-white bg-blue-500 hover:bg-blue-600 shadow-blue-500/20 disabled:opacity-60">
+                      {statusLoading ? <Loader2 size={16} className="animate-spin" /> : <DollarSign size={16} />}
+                      Xác nhận đã trả
+                    </button>
+                  </>
+                )}
+
+                {/* PAID — terminal state, no further action */}
+                {periodStatus === 'PAID' && (
+                  <span className="flex items-center gap-2 px-4 py-2 h-[38px] rounded-lg font-bold text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500/40 bg-blue-50 dark:bg-blue-500/10 text-sm">
+                    <CheckCircle size={16} /> Đã hoàn tất thanh toán
+                  </span>
+                )}
+              </>
             )}
           </div>
         )}
@@ -229,7 +293,7 @@ export default function Payroll() {
                 Trạng thái kỳ: {STATUS_CONFIG[periodStatus]?.label || periodStatus}
               </span>
             )}
-            {loading && <Loader2 size={18} className="text-primary animate-spin" />}
+            {(loading || statusLoading) && <Loader2 size={18} className="text-primary animate-spin" />}
           </div>
 
           <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-300">
@@ -302,7 +366,7 @@ export default function Payroll() {
                           </span>
                         </td>
 
-                        {/* Actions */}
+                        {/* Actions — only editable in DRAFT */}
                         <td className="px-4 py-4 text-center" onClick={e => e.stopPropagation()}>
                           {row.status === 'DRAFT' ? (
                             editingId === row.id ? (

@@ -52,11 +52,45 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PayrollPeriod getPeriodById(Integer periodId) {
+        return payrollPeriodRepository.findById(periodId)
+                .orElseThrow(() -> new IllegalArgumentException("Period not found: " + periodId));
+    }
+
+    @Override
     @Transactional
-    public PayrollPeriod updatePeriodStatus(Integer periodId, PayrollPeriod.PayrollPeriodStatus status) {
+    public PayrollPeriod updatePeriodStatus(Integer periodId, PayrollPeriod.PayrollPeriodStatus newStatus) {
         final PayrollPeriod period = payrollPeriodRepository.findById(periodId)
                 .orElseThrow(() -> new IllegalArgumentException("Period not found"));
-        period.setStatus(status);
+
+        final PayrollPeriod.PayrollPeriodStatus current = period.getStatus();
+
+        boolean validTransition =
+                (current == PayrollPeriod.PayrollPeriodStatus.DRAFT    && newStatus == PayrollPeriod.PayrollPeriodStatus.APPROVED) ||
+                (current == PayrollPeriod.PayrollPeriodStatus.APPROVED && newStatus == PayrollPeriod.PayrollPeriodStatus.PAID)     ||
+                (current == PayrollPeriod.PayrollPeriodStatus.APPROVED && newStatus == PayrollPeriod.PayrollPeriodStatus.DRAFT);
+
+        if (!validTransition) {
+            throw new PayrollPeriodAlreadyApprovedException(
+                    "Không thể chuyển từ " + current + " sang " + newStatus);
+        }
+
+        final Payroll.PayrollStatus childStatus = switch (newStatus) {
+            case APPROVED -> Payroll.PayrollStatus.APPROVED;
+            case PAID     -> Payroll.PayrollStatus.PAID;
+            case DRAFT    -> Payroll.PayrollStatus.DRAFT;
+        };
+        payrollRepository.bulkUpdateStatusByPeriodId(periodId, childStatus);
+
+        if (newStatus == PayrollPeriod.PayrollPeriodStatus.APPROVED) {
+            final String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            accountRepository.findByUsername(username).ifPresent(period::setApprovedBy);
+        } else if (newStatus == PayrollPeriod.PayrollPeriodStatus.DRAFT) {
+            period.setApprovedBy(null);
+        }
+
+        period.setStatus(newStatus);
         return payrollPeriodRepository.save(period);
     }
 
