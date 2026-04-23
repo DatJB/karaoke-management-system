@@ -1,0 +1,9 @@
+$kind: http-request
+name: Schedules
+url: localhost:8081/api/v1/schedules/me
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwidXNlcm5hbWUiOiJzdGFmZjAxIiwicm9sZSI6IlNUQUZGIiwiZW1wbG95ZWVJZCI6NSwiaWF0IjoxNzc2NjE1NzgzLCJleHAiOjE3NzY3MDIxODN9.aH0wrZKrprrxcXW_zCN3fgJ6pIblJVnraTqhXufM0O0
+order: 4000

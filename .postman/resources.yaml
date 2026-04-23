@@ -1,0 +1,15 @@
+# Use this workspace to collaborate
+workspace:
+  id: c345311c-49fc-43af-95c9-ab07183d76a1
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ..\postman\collections\karaoke-system: 9a441b5f-2da3-4ad6-8038-116d55c1455f
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

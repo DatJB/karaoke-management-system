@@ -1,0 +1,20 @@
+$kind: http-request
+name: Schedules
+url: localhost:8081/api/v1/schedules
+method: DELETE
+body:
+  type: json
+  content: "{\r
+
+    \  \"employeeId\": 1,\r
+
+    \  \"shiftId\": 1,\r
+
+    \  \"workDate\": \"2026-04-20\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYxMDUyOCwiZXhwIjoxNzc2Njk2OTI4fQ.xb0GgWwNq91HMgqk8mMXl_K6KM9zyrCUYWCcee61bEI
+order: 2000

@@ -1,0 +1,28 @@
+$kind: http-request
+name: Employees/{id}
+url: localhost:8081/api/v1/employees/9
+method: PUT
+body:
+  type: json
+  content: "{\r
+
+    \    \"code\": \"NV009\",\r
+
+    \    \"name\": \"Nguyen Van An Updated\",\r
+
+    \    \"phone\": \"0908888999\",\r
+
+    \    \"baseSalary\": 5500000,\r
+
+    \    \"salaryPerHour\": 40000,\r
+
+    \    \"status\": \"BUSY\",\r
+
+    \    \"avatarUrl\": \"https://example.com/avatar-an-new.jpg\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYwMDAyNywiZXhwIjoxNzc2Njg2NDI3fQ.WF0PPaq7p7sYWxyfiEpep0LNi0frbse-Hao7eVZYvFw
+order: 4402815474139387
