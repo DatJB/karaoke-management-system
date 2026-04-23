@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
 import { X, ArrowLeft, Search, CheckCircle2, Pencil, Trash2, Loader2, ArrowRight } from 'lucide-react'
@@ -105,6 +106,48 @@ export default function RoomDetailModal({
   } : null
 
   const isAssignedToMe = currentRoom.staffList?.some(s => s.name === user.name)
+
+  const [orderItems, setOrderItems] = useState([])
+  const [availableProducts, setAvailableProducts] = useState([])
+  const [addingQuantities, setAddingQuantities] = useState({})
+
+  useEffect(() => {
+    if (orderAction === 'VIEW' && selectedRoom) {
+      fetchOrders()
+    } else if (orderAction === 'ADD' && selectedRoom) {
+      getProducts().then(data => setAvailableProducts(data.content || [])).catch(console.error)
+      setAddingQuantities({})
+    }
+  }, [orderAction, selectedRoom])
+
+  const fetchOrders = () => {
+    getRoomOrders(selectedRoom.id).then(setOrderItems).catch(console.error)
+  }
+
+  const handleUpdateQty = async (itemId, currentQty, delta) => {
+    const newQty = currentQty + delta
+    if (newQty <= 0) {
+      await deleteOrderItem(selectedRoom.id, itemId)
+    } else {
+      await updateOrderItem(selectedRoom.id, itemId, newQty)
+    }
+    fetchOrders()
+  }
+
+  const handleDeleteItem = async (itemId) => {
+    await deleteOrderItem(selectedRoom.id, itemId)
+    fetchOrders()
+  }
+
+  const submitAddOrders = async () => {
+    const promises = Object.entries(addingQuantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([productId, qty]) => addOrderToRoom(selectedRoom.id, { productId: Number(productId), quantity: qty }))
+    
+    await Promise.all(promises)
+    toast.success('Đã thêm vào order của phòng thành công!')
+    setOrderAction('VIEW') // switch back to view
+  }
 
   const handleFullClose = () => {
     onClose(); setBookingAction(null); setOrderAction(null); setBookingStep(1); setSelectedCustomerId(null)
@@ -262,24 +305,35 @@ export default function RoomDetailModal({
               <h3 className="text-xl font-bold text-slate-900 dark:text-white flex-1">Order của {currentRoom.name}</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {[
-                { qty: 'x12', name: 'Bia Heineken', price: '35,000đ/lon', total: '420,000đ', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' },
-                { qty: 'x1', name: 'Đĩa trái cây lớn', price: '150,000đ/đĩa', total: '150,000đ', color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' },
-                { qty: 'x5', name: 'Khăn lạnh', price: '5,000đ/cái', total: '25,000đ', color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' },
-              ].map(item => (
-                <div key={item.name} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              {orderItems.map(item => (
+                <div key={item.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg font-bold flex items-center justify-center shadow-sm ${item.color}`}>{item.qty}</div>
-                    <div><div className="font-bold text-slate-900 dark:text-white">{item.name}</div><div className="text-sm text-slate-500">{item.price}</div></div>
+                    <div className="w-10 h-10 rounded-lg font-bold flex items-center justify-center shadow-sm bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                      x{item.quantity}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white">{item.productName}</div>
+                      <div className="text-sm text-slate-500">{item.unitPrice?.toLocaleString()}đ</div>
+                    </div>
                   </div>
-                  <div className="font-bold text-slate-900 dark:text-white">{item.total}</div>
+                  <div className="flex items-center gap-4">
+                    <div className="font-bold text-slate-900 dark:text-white">{item.totalPrice?.toLocaleString()}đ</div>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleUpdateQty(item.id, item.quantity, -1)} className="p-1 text-slate-400 hover:text-slate-600 bg-slate-200 rounded"><Minus size={14} /></button>
+                      <button onClick={() => handleUpdateQty(item.id, item.quantity, 1)} className="p-1 text-slate-400 hover:text-slate-600 bg-slate-200 rounded"><Plus size={14} /></button>
+                      <button onClick={() => handleDeleteItem(item.id)} className="p-1 text-red-400 hover:text-red-600 bg-red-100 rounded ml-2"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
                 </div>
               ))}
+              {orderItems.length === 0 && <p className="text-center text-slate-500 mt-10">Chưa gọi món nào.</p>}
             </div>
             <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 shrink-0">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-slate-500 font-medium">Tổng tiền order:</span>
-                <span className="text-2xl font-bold text-primary">595,000đ</span>
+                <span className="text-2xl font-bold text-primary">
+                  {orderItems.reduce((acc, curr) => acc + curr.totalPrice, 0).toLocaleString()}đ
+                </span>
               </div>
               <button onClick={() => setOrderAction('ADD')} className="w-full px-6 py-3 font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-xl transition-colors shadow-lg shadow-blue-500/30">+ Gọi thêm món</button>
             </div>
@@ -299,28 +353,32 @@ export default function RoomDetailModal({
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {mockProducts.map(product => (
-                <div key={product.id} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0">
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-white mb-1">{product.name}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-primary">{product.price.toLocaleString()}đ</span>
-                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${product.stock > 0 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                        {product.stock > 0 ? `Còn ${product.stock}` : 'Hết hàng'}
-                      </span>
+              {availableProducts.map(product => {
+                const qty = addingQuantities[product.id] || 0
+                return (
+                  <div key={product.id} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0">
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white mb-1">{product.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-primary">{product.price?.toLocaleString()}đ</span>
+                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${product.stock > 0 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
+                          {product.stock > 0 ? `Còn ${product.stock}` : 'Hết hàng'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, qty - 1) }))} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
+                      <span className="font-bold text-slate-900 dark:text-white w-4 text-center">{qty}</span>
+                      <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: qty + 1 }))} disabled={product.stock <= 0} className="w-8 h-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed">+</button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
-                    <span className="font-bold text-slate-900 dark:text-white w-4 text-center">0</span>
-                    <button className="w-8 h-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center font-bold">+</button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 shrink-0">
-              <button onClick={() => { alert('Đã thêm vào order của phòng thành công!'); setOrderAction(null) }}
-                className="w-full px-6 py-3 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors shadow-lg shadow-primary/30">
+              <button onClick={submitAddOrders}
+                disabled={Object.values(addingQuantities).every(q => q === 0)}
+                className="w-full px-6 py-3 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors shadow-lg shadow-primary/30 disabled:bg-slate-300 disabled:cursor-not-allowed">
                 Xác nhận thêm
               </button>
             </div>

@@ -13,6 +13,10 @@ export default function RoomMap() {
   const [filter, setFilter] = useState(user.role === 'STAFF' ? 'ASSIGNED' : 'ALL')
   const [capacityFilter, setCapacityFilter] = useState('ALL')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
+  
+  const [roomsData, setRoomsData] = useState([])
+  const [loading, setLoading] = useState(true)
+
   const [selectedRoom, setSelectedRoom] = useState(null)
   const [bookingAction, setBookingAction] = useState(null)
   const [bookingStep, setBookingStep] = useState(1)
