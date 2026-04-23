@@ -91,7 +91,8 @@ export default function RoomPricing() {
 
   const fetchSpecials = async () => {
     try {
-      const rooms = await getRooms()
+      const response = await getRooms()
+      const rooms = Array.isArray(response) ? response : (response?.content || response?.data || [])
       setRealRooms(rooms)
       const promises = rooms.map(r => getSpecialPricesByRoom(r.id))
       const results = await Promise.all(promises)

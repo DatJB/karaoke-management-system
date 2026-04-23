@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useState, useEffect } from 'react'
-import { X, ArrowLeft, Search, CheckCircle2, Pencil, Trash2, Loader2, ArrowRight } from 'lucide-react'
+import { X, ArrowLeft, Search, CheckCircle2, Pencil, Trash2, Loader2, ArrowRight, Minus, Plus } from 'lucide-react'
 import { mockCustomers, mockEmployees, mockProducts } from '../../mock/data'
 import { ROOM_STATUS_COLOR, ROOM_STATUS_LABEL } from './RoomCard'
 import { getRoomDetail } from '../../api/roomApi'
 import { createBooking } from '../../api/bookingApi'
 import { getAllCustomers } from '../../api/customerApi'
+import { getRoomOrders, addOrderToRoom, updateOrderItem, deleteOrderItem } from '../../api/order'
+import { getProducts } from '../../api/product'
+import toast from 'react-hot-toast'
 
 const getRoomPrice = (category) => (category === 'VIP' ? 200000 : 100000)
 
@@ -94,6 +96,25 @@ export default function RoomDetailModal({
     }
   }, [selectedRoom?.id])
 
+  const [orderItems, setOrderItems] = useState([])
+  const [availableProducts, setAvailableProducts] = useState([])
+  const [addingQuantities, setAddingQuantities] = useState({})
+
+  const fetchOrders = () => {
+    if (selectedRoom?.id) {
+      getRoomOrders(selectedRoom.id).then(setOrderItems).catch(console.error)
+    }
+  }
+
+  useEffect(() => {
+    if (orderAction === 'VIEW' && selectedRoom) {
+      fetchOrders()
+    } else if (orderAction === 'ADD' && selectedRoom) {
+      getProducts().then(data => setAvailableProducts(data.content || [])).catch(console.error)
+      setAddingQuantities({})
+    }
+  }, [orderAction, selectedRoom])
+
   if (!selectedRoom || !document.getElementById('main-layout')) return null
 
   const currentRoom = detailedRoom || selectedRoom
@@ -106,23 +127,6 @@ export default function RoomDetailModal({
   } : null
 
   const isAssignedToMe = currentRoom.staffList?.some(s => s.name === user.name)
-
-  const [orderItems, setOrderItems] = useState([])
-  const [availableProducts, setAvailableProducts] = useState([])
-  const [addingQuantities, setAddingQuantities] = useState({})
-
-  useEffect(() => {
-    if (orderAction === 'VIEW' && selectedRoom) {
-      fetchOrders()
-    } else if (orderAction === 'ADD' && selectedRoom) {
-      getProducts().then(data => setAvailableProducts(data.content || [])).catch(console.error)
-      setAddingQuantities({})
-    }
-  }, [orderAction, selectedRoom])
-
-  const fetchOrders = () => {
-    getRoomOrders(selectedRoom.id).then(setOrderItems).catch(console.error)
-  }
 
   const handleUpdateQty = async (itemId, currentQty, delta) => {
     const newQty = currentQty + delta
@@ -143,7 +147,7 @@ export default function RoomDetailModal({
     const promises = Object.entries(addingQuantities)
       .filter(([_, qty]) => qty > 0)
       .map(([productId, qty]) => addOrderToRoom(selectedRoom.id, { productId: Number(productId), quantity: qty }))
-    
+
     await Promise.all(promises)
     toast.success('Đã thêm vào order của phòng thành công!')
     setOrderAction('VIEW') // switch back to view
@@ -182,15 +186,15 @@ export default function RoomDetailModal({
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Tìm tên hoặc SĐT khách hàng..." 
+                <input
+                  type="text"
+                  placeholder="Tìm tên hoặc SĐT khách hàng..."
                   value={customerKeyword}
                   onChange={e => setCustomerKeyword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" 
+                  className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                 />
               </div>
-              <textarea 
+              <textarea
                 placeholder="Ghi chú booking..."
                 value={bookingNote}
                 onChange={e => setBookingNote(e.target.value)}
@@ -226,7 +230,7 @@ export default function RoomDetailModal({
               </button>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 shrink-0">
-              <button 
+              <button
                 disabled={!selectedCustomerId || saving}
                 onClick={() => {
                   if (bookingAction === 'RESERVE' || bookingAction === 'CHECKIN') {
@@ -234,7 +238,7 @@ export default function RoomDetailModal({
                   } else {
                     setBookingStep(2)
                   }
-                }} 
+                }}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-all shadow-lg shadow-primary/30 disabled:opacity-50"
               >
                 {saving ? (
@@ -253,11 +257,11 @@ export default function RoomDetailModal({
         ) : bookingAction && bookingStep === 2 ? (
           <>
             <div className="flex items-center gap-3 p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
-              <button 
+              <button
                 onClick={() => {
                   if (bookingAction === 'ASSIGN_STAFF') setBookingAction(null)
                   else setBookingStep(1)
-                }} 
+                }}
                 className="p-2 -ml-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               >
                 <ArrowLeft size={20} />
@@ -406,7 +410,7 @@ export default function RoomDetailModal({
                   {ROOM_STATUS_LABEL[currentRoom.status] ?? currentRoom.status}
                 </span>
               </div>
-              
+
               {/* Status Description */}
               <div className="flex items-center gap-3">
                 {currentRoom.status === 'OCCUPIED' && (
@@ -438,7 +442,7 @@ export default function RoomDetailModal({
                 <div><div className="text-xs text-slate-500 mb-1">Loại phòng</div><div className="font-semibold text-slate-700 dark:text-slate-300">{currentRoom.category}</div></div>
                 <div><div className="text-xs text-slate-500 mb-1">Sức chứa</div><div className="font-semibold text-slate-700 dark:text-slate-300">{currentRoom.size} người</div></div>
                 <div><div className="text-xs text-slate-500 mb-1">Giá/giờ</div><div className="font-semibold text-slate-700 dark:text-slate-300">
-                  {currentRoom.currentPrice 
+                  {currentRoom.currentPrice
                     ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentRoom.currentPrice)
                     : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(getRoomPrice(currentRoom.category))
                   }
@@ -452,7 +456,7 @@ export default function RoomDetailModal({
                     {currentRoom.customerPhone && (
                       <div className="flex justify-between"><span className="text-slate-500">Số điện thoại:</span><span className="font-medium text-slate-700 dark:text-slate-200">{currentRoom.customerPhone}</span></div>
                     )}
-                    
+
                     {currentRoom.staffList && currentRoom.staffList.length > 0 && (
                       <div className="flex justify-between"><span className="text-slate-500">Nhân viên phục vụ:</span><span className="font-bold text-primary">{currentRoom.staffList.map(s => s.name).join(', ')}</span></div>
                     )}
@@ -508,7 +512,7 @@ export default function RoomDetailModal({
             </div>
           </>
         )}
-        
+
         {loading && (
           <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] z-[30] flex items-center justify-center">
             <Loader2 className="animate-spin text-primary" size={32} />

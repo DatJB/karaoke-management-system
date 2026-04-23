@@ -20,11 +20,7 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
     List<Booking> findByRoomIdAndStatuses(@Param("roomId") Integer roomId, @Param("statuses") Collection<Booking.BookingStatus> statuses);
 
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
-}
 
-@Repository
-public interface BookingRepository extends JpaRepository<Booking, Integer>
-{
     boolean existsByCustomerId(Integer customerId);
 
     @Query("SELECT b FROM Booking b WHERE b.customer.id = :customerId " +
