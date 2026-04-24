@@ -1,29 +1,89 @@
-import { useState } from 'react'
-import { Calendar, Search, FileText, Eye, Download, Edit2, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Calendar, Search, FileText, Eye, Download, Trash2, Plus, Loader2, BadgeCheck, DollarSign } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import payrollPeriodApi from '../api/payrollPeriodApi'
 
-const mockPayrollList = [
-  { id: 1, period: 'Tháng 10/2023', startDate: '2023-10-01', endDate: '2023-10-31', creator: 'Admin VIP', totalBase: 45000000, totalPay: 52000000, status: 'APPROVED' },
-  { id: 2, period: 'Tháng 09/2023', startDate: '2023-09-01', endDate: '2023-09-30', creator: 'Admin VIP', totalBase: 42000000, totalPay: 48000000, status: 'APPROVED' },
-  { id: 3, period: 'Tháng 08/2023', startDate: '2023-08-01', endDate: '2023-08-31', creator: 'Manager A', totalBase: 41000000, totalPay: 45000000, status: 'APPROVED' },
-  { id: 4, period: 'Tháng 11/2023 (Tạm tính)', startDate: '2023-11-01', endDate: '2023-11-15', creator: 'Admin VIP', totalBase: 25000000, totalPay: 27000000, status: 'DRAFT' },
-]
+const STATUS_CONFIG = {
+  DRAFT:    { label: 'Nháp',     cls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400' },
+  APPROVED: { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' },
+  PAID:     { label: 'Đã trả',   cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
+}
 
 export default function PayrollList() {
-  const [payrolls, setPayrolls] = useState(mockPayrollList)
+  const [payrolls, setPayrolls]     = useState([])
   const [filterStart, setFilterStart] = useState('')
-  const [filterEnd, setFilterEnd] = useState('')
+  const [filterEnd, setFilterEnd]   = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [loading, setLoading]       = useState(true)
 
-  const handleDelete = (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa bảng lương này?')) {
-      setPayrolls(prev => prev.filter(p => p.id !== id))
+  useEffect(() => {
+    fetchPeriods()
+  }, [])
+
+  const fetchPeriods = async () => {
+    setLoading(true)
+    try {
+      const res = await payrollPeriodApi.getPeriods(0, 100)
+      if (res.data) {
+        setPayrolls(res.data.content)
+      }
+    } catch (error) {
+      console.error('Failed to fetch periods:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa kỳ lương này?')) {
+      try {
+        await payrollPeriodApi.deletePeriod(id)
+        setPayrolls(prev => prev.filter(p => p.id !== id))
+      } catch (error) {
+        alert("Không thể xóa kỳ lương. Có thể nó đã được duyệt.")
+      }
+    }
+  }
+
+  const handleQuickStatus = async (id, currentStatus) => {
+    const transitions = { DRAFT: 'APPROVED', APPROVED: 'PAID' }
+    const newStatus = transitions[currentStatus]
+    if (!newStatus) return
+    const confirmMsg = newStatus === 'APPROVED'
+      ? 'Duyệt toàn bộ bảng lương kỳ này?'
+      : 'Xác nhận đã thanh toán lương kỳ này?'
+    if (!window.confirm(confirmMsg)) return
+    try {
+      await payrollPeriodApi.updateStatus(id, newStatus)
+      setPayrolls(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p))
+    } catch (error) {
+      alert('Không thể thay đổi trạng thái: ' + (error.message || ''))
+    }
+  }
+
+  const handleExport = async (id) => {
+    try {
+      const res = await payrollPeriodApi.exportPayrolls(id);
+      // When responseType='blob', the interceptor returns response.data (the raw Blob) directly
+      const blob = res instanceof Blob ? res : new Blob([res]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payrolls_period_${id}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export Excel", error);
+      alert("Lỗi khi tải file Excel");
     }
   }
 
   const displayedPayrolls = payrolls.filter(p => {
-    if (filterStart && p.startDate < filterStart) return false
-    if (filterEnd && p.endDate > filterEnd) return false
-    if (searchTerm && !p.period.toLowerCase().includes(searchTerm.toLowerCase())) return false
+    if (filterStart && p.periodStart < filterStart) return false
+    if (filterEnd && p.periodEnd > filterEnd) return false
+    if (searchTerm && !p.name?.toLowerCase().includes(searchTerm.toLowerCase())) return false
     return true
   })
 
@@ -34,6 +94,10 @@ export default function PayrollList() {
           <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Danh sách bảng lương</h1>
           <p className="text-slate-500 dark:text-slate-400">Quản lý và tra cứu các bảng lương đã tính theo thời gian.</p>
         </div>
+        <Link to="/payroll"
+          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-primary/20 shrink-0">
+          <Plus size={18} /> Tính lương mới
+        </Link>
       </div>
 
       <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-end">
@@ -79,55 +143,69 @@ export default function PayrollList() {
                 <th className="px-6 py-4 font-medium text-sm">Kỳ lương</th>
                 <th className="px-6 py-4 font-medium text-sm text-center">Thời gian</th>
                 <th className="px-6 py-4 font-medium text-sm">Người tạo</th>
-                <th className="px-4 py-4 font-medium text-sm text-right">Tổng lương cứng</th>
-                <th className="px-6 py-4 font-bold text-sm text-right text-primary">Tổng thực nhận</th>
                 <th className="px-6 py-4 font-medium text-sm text-center">Trạng thái</th>
                 <th className="px-6 py-4 font-medium text-sm text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {displayedPayrolls.length > 0 ? displayedPayrolls.map((row) => (
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100 dark:border-slate-800">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <td key={j} className="px-6 py-4">
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" style={{ width: `${60 + j * 10}%` }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : displayedPayrolls.length > 0 ? displayedPayrolls.map((row) => (
                 <tr key={row.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                        <FileText size={16} className="text-primary opacity-70" />
-                       {row.period}
+                       {row.name || 'Kỳ lương'}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 text-center font-mono">
-                    {new Date(row.startDate).toLocaleDateString('vi-VN')} - {new Date(row.endDate).toLocaleDateString('vi-VN')}
+                    {new Date(row.periodStart).toLocaleDateString('vi-VN')} - {new Date(row.periodEnd).toLocaleDateString('vi-VN')}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    {row.creator}
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-slate-600 dark:text-slate-400 text-right">
-                    {row.totalBase.toLocaleString()}đ
-                  </td>
-                  <td className="px-6 py-4 text-base font-bold text-slate-900 dark:text-white text-right">
-                    {row.totalPay.toLocaleString()}đ
+                    {row.createdBy?.username || 'Admin'}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      row.status === 'APPROVED' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
-                      'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
-                    }`}>
-                      {row.status === 'APPROVED' ? 'ĐÃ DUYỆT' : 'BẢN NHÁP'}
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${STATUS_CONFIG[row.status]?.cls || ''}`}>
+                      {STATUS_CONFIG[row.status]?.label || row.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex gap-2 justify-end">
-                      <button className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
+                      <Link to={`/payroll?periodId=${row.id}`} className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
                         <Eye size={16} />
-                      </button>
-                      <button className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 dark:bg-orange-500/20 border border-orange-500/20 flex items-center justify-center transition-colors shadow-sm" title="Sửa bảng lương">
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(row.id)}
-                        className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:bg-red-500/20 border border-red-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xóa bảng lương">
-                        <Trash2 size={16} />
-                      </button>
-                      <button className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors shadow-sm" title="Tải về Excel">
+                      </Link>
+                      {/* Quick approve button — DRAFT→APPROVED */}
+                      {row.status === 'DRAFT' && (
+                        <button onClick={() => handleQuickStatus(row.id, 'DRAFT')}
+                          className="w-8 h-8 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:bg-green-500/20 border border-green-500/20 flex items-center justify-center transition-colors shadow-sm" title="Duyệt kỳ lương">
+                          <BadgeCheck size={16} />
+                        </button>
+                      )}
+                      {/* Mark as paid — APPROVED→PAID */}
+                      {row.status === 'APPROVED' && (
+                        <button onClick={() => handleQuickStatus(row.id, 'APPROVED')}
+                          className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center transition-colors shadow-sm" title="Đánh dấu đã trả">
+                          <DollarSign size={16} />
+                        </button>
+                      )}
+                      {row.status === 'DRAFT' && (
+                        <button
+                          onClick={() => handleDelete(row.id)}
+                          className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:bg-red-500/20 border border-red-500/20 flex items-center justify-center transition-colors shadow-sm" title="Xóa kỳ lương">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleExport(row.id)}
+                        className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors shadow-sm" title="Tải về Excel">
                         <Download size={16} />
                       </button>
                     </div>

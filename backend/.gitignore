@@ -1,33 +1,30 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+# --- IDEs & System Files ---
+.idea/
 .vscode/
+*.swp
+*.DS_Store
+Thumbs.db
+
+# --- Environment Files (IMPORTANT) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Backend (Spring Boot/Maven) ---
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/.sts4-cache
+**/*.iml
+
+# --- Frontend (Node.js/React/Vue) ---
+**/node_modules/
+**/dist/
+**/build/
+**/.eslintcache
+**/npm-debug.log*
+
+# --- Docker ---
+**/docker/mysql/data/
+**/docker/.env

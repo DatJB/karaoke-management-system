@@ -1,7 +1,9 @@
 import { Clock, TrendingUp, TrendingDown } from 'lucide-react'
 
 /** Used only by Payroll.jsx */
-export default function PayrollExpandedRow({ row }) {
+export default function PayrollExpandedRow({ data }) {
+  if (!data) return null;
+  
   return (
     <tr className="bg-slate-50/60 dark:bg-slate-800/20 border-b border-slate-200 dark:border-slate-700">
       <td colSpan={8} className="px-6 py-6">
@@ -12,7 +14,7 @@ export default function PayrollExpandedRow({ row }) {
             <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
               <Clock size={15} className="text-primary" /> Chi tiết ca phục vụ phòng
             </h4>
-            {row.roomServices.length > 0 ? (
+            {data.serviceHistory && data.serviceHistory.length > 0 ? (
               <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm max-w-4xl">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
@@ -26,16 +28,24 @@ export default function PayrollExpandedRow({ row }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {row.roomServices.map((s, idx) => (
-                      <tr key={idx} className="border-t border-slate-100 dark:border-slate-800">
-                        <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{s.date}</td>
-                        <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{s.room}</td>
-                        <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-400">{s.startTime} – {s.endTime}</td>
-                        <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-400">{s.duration}h</td>
-                        <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">{s.payPerHour.toLocaleString()}đ</td>
-                        <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">{s.total.toLocaleString()}đ</td>
-                      </tr>
-                    ))}
+                    {data.serviceHistory.map((s, idx) => {
+                      const checkinDate = new Date(s.checkInTime);
+                      const checkoutDate = new Date(s.checkOutTime);
+                      return (
+                        <tr key={idx} className="border-t border-slate-100 dark:border-slate-800">
+                          <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{checkinDate.toLocaleDateString('vi-VN')}</td>
+                          <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{s.roomName}</td>
+                          <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-400">
+                            {checkinDate.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} – {checkoutDate.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                          </td>
+                          <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-400">{s.durationHours}h</td>
+                          <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">
+                            {s.durationHours > 0 ? (s.earnedAmount / s.durationHours).toLocaleString() : 0}đ
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">{s.earnedAmount.toLocaleString()}đ</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -51,11 +61,11 @@ export default function PayrollExpandedRow({ row }) {
                 <TrendingUp size={14} className="text-green-600 dark:text-green-400" />
                 <span className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Thưởng</span>
               </div>
-              {row.bonuses.length > 0 ? (
+              {data.bonuses && data.bonuses.length > 0 ? (
                 <div className="divide-y divide-green-100 dark:divide-green-500/10">
-                  {row.bonuses.map((b, i) => (
+                  {data.bonuses.map((b, i) => (
                     <div key={i} className="flex justify-between items-center px-4 py-2.5 text-sm">
-                      <span className="text-slate-600 dark:text-slate-300">{b.reason}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{b.note || b.type}</span>
                       <span className="font-bold text-green-600 dark:text-green-400">+{b.amount.toLocaleString()}đ</span>
                     </div>
                   ))}
@@ -70,11 +80,11 @@ export default function PayrollExpandedRow({ row }) {
                 <TrendingDown size={14} className="text-red-600 dark:text-red-400" />
                 <span className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Phạt</span>
               </div>
-              {row.penalties.length > 0 ? (
+              {data.otherPenalties && data.otherPenalties.length > 0 ? (
                 <div className="divide-y divide-red-100 dark:divide-red-500/10">
-                  {row.penalties.map((p, i) => (
+                  {data.otherPenalties.map((p, i) => (
                     <div key={i} className="flex justify-between items-center px-4 py-2.5 text-sm">
-                      <span className="text-slate-600 dark:text-slate-300">{p.reason}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{p.reason || p.type}</span>
                       <span className="font-bold text-red-600 dark:text-red-400">-{p.amount.toLocaleString()}đ</span>
                     </div>
                   ))}

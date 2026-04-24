@@ -2,6 +2,7 @@ package com.karaoke.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,21 +42,27 @@ public class Employee {
     private String avatarUrl;
 
     @OneToOne(mappedBy = "employee")
+    @JsonIgnore
     private Account account;
 
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<EmployeeShift> shifts;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<BookingRoomEmployee> bookingRoomEmployees;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Bonus> bonuses;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Penalty> penalties;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Payroll> payrolls;
 
     public enum EmployeeStatus {

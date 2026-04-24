@@ -2,6 +2,8 @@ package com.karaoke.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +25,7 @@ public class Account {
     private String username;
 
     @Column(nullable = false, length = 255)
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -31,6 +34,7 @@ public class Account {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
+    @JsonIgnoreProperties({"account", "shifts", "bookingRoomEmployees", "bonuses", "penalties", "payrolls"})
     private Employee employee;
 
     @Enumerated(EnumType.STRING)
@@ -40,6 +44,7 @@ public class Account {
     private LocalDateTime lastLoginAt;
 
     @OneToMany(mappedBy = "account")
+    @JsonIgnore
     private List<Notification> notifications;
 
     public enum Role {
