@@ -17,7 +17,6 @@ public interface BookingRoomEmployeeRepository extends JpaRepository<BookingRoom
 
     @org.springframework.data.jpa.repository.Query("SELECT bre FROM BookingRoomEmployee bre JOIN bre.bookingRoom br WHERE bre.employee.id = :employeeId AND br.status = :status")
     List<BookingRoomEmployee> findByEmployeeIdAndBookingRoomStatus(@org.springframework.data.repository.query.Param("employeeId") Integer employeeId, @org.springframework.data.repository.query.Param("status") com.karaoke.backend.entity.BookingRoom.BookingRoomStatus status);
-}
 
     @Query(value = "SELECT bre.employee_id AS employeeId, " +
             "SUM(TIME_TO_SEC(TIMEDIFF(br.checkout_time, br.checkin_time)) / 3600.0) AS totalHours " +

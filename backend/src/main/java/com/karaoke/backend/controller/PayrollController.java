@@ -33,18 +33,18 @@ public class PayrollController {
     private final EmployeeRepository employeeRepository;
     private final com.karaoke.backend.service.ExcelExportService excelExportService;
 
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    @GetMapping("/employees")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getEmployees() {
-        List<Map<String, Object>> employees = employeeRepository.findAllWithAccount().stream()
-                .map(e -> Map.<String, Object>of(
-                        "id", e.getId(),
-                        "name", e.getName() != null ? e.getName() : "",
-                        "role", e.getAccount() != null ? e.getAccount().getRole().name() : "STAFF"
-                ))
-                .collect(java.util.stream.Collectors.toList());
-        return ResponseEntity.ok(new ApiResponse<>("Success", employees));
-    }
+//    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+//    @GetMapping("/employees")
+//    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getEmployees() {
+//        List<Map<String, Object>> employees = employeeRepository.findAllWithAccount().stream()
+//                .map(e -> Map.<String, Object>of(
+//                        "id", e.getId(),
+//                        "name", e.getName() != null ? e.getName() : "",
+//                        "role", e.getAccount() != null ? e.getAccount().getRole().name() : "STAFF"
+//                ))
+//                .collect(java.util.stream.Collectors.toList());
+//        return ResponseEntity.ok(new ApiResponse<>("Success", employees));
+//    }
 
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @GetMapping("/payroll-periods")

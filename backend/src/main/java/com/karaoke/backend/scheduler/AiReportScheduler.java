@@ -18,13 +18,13 @@ public class AiReportScheduler
     private final FeedbackRepository feedbackRepository;
     private final AiIntegrationService aiIntegrationService;
 
-    @Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "0 0 0 * * ?")
     public void runDailyAiAnalysis()
     {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
-        LocalDateTime start = yesterday.atTime(8, 0, 0);
-        LocalDateTime end = today.atTime(3, 0, 0);
+        LocalDateTime start = yesterday.atStartOfDay();
+        LocalDateTime end = yesterday.atTime(23, 59, 59);
 
         List<Feedback> feedbacks = feedbackRepository.findByCreatedAtBetween(start, end);
 

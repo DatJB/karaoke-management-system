@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Search, ChevronDown, Loader2 } from 'lucide-react'
-import employeeApi from '../../api/employeeApi'
+import { getAllEmployees } from '../../api/employeeApi'
 
 const roleLabel = { ADMIN: 'Admin', MANAGER: 'Manager', STAFF: 'NV Phục vụ', RECEPTIONIST: 'Lễ tân' }
 
@@ -22,8 +22,11 @@ export default function BonusEmployeeSelect({ value, onChange }) {
 
   useEffect(() => {
     setLoading(true)
-    employeeApi.getAll()
-      .then(res => setEmployees(Array.isArray(res.data) ? res.data : []))
+    getAllEmployees({ page: 0, size: 100 })
+      .then(res => {
+        const content = res.content || res;
+        setEmployees(Array.isArray(content) ? content : [])
+      })
       .catch(() => setEmployees([]))
       .finally(() => setLoading(false))
   }, [])
