@@ -1,6 +1,7 @@
 package com.karaoke.backend.service.impl;
 
 import com.karaoke.backend.dto.request.ProductRequest;
+import com.karaoke.backend.dto.response.NewPageResponse;
 import com.karaoke.backend.dto.response.ProductResponse;
 import com.karaoke.backend.entity.Product;
 import com.karaoke.backend.exception.ResourceNotFoundException;
@@ -20,8 +21,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductResponse> getAllProducts(Pageable pageable) {
-        return productRepository.findAll(pageable).map(this::mapToResponse);
+    public NewPageResponse<ProductResponse> getAllProducts(String keyword, Product.ProductCategory category, Pageable pageable) {
+        Page<ProductResponse> productPage = productRepository
+                .searchAndFilterProducts(keyword, category, pageable)
+                .map(this::mapToResponse);
+
+        return NewPageResponse.from(productPage);
     }
 
     @Override

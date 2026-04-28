@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Package } from 'lucide-react'
+import { Plus, Edit2, Trash2, Package, Search, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getProducts, createProduct, updateProduct, deleteProduct } from '../api/product'
 import ProductModal from '../components/products/ProductModal'
@@ -10,6 +10,11 @@ export default function Products() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   
+  const [searchTerm, setSearchTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('ALL')
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+
   const emptyForm = { code: '', name: '', category: 'DRINK', price: '', stock: '' }
   const [modal, setModal] = useState(null)
   const [formData, setFormData] = useState(emptyForm)
@@ -17,13 +22,27 @@ export default function Products() {
 
   useEffect(() => {
     fetchProducts()
-  }, [])
+  }, [page, categoryFilter])
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (page === 0) fetchProducts()
+      else setPage(0)
+    }, 500)
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm])
 
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const data = await getProducts()
+      const data = await getProducts({
+        page,
+        size: 10,
+        keyword: searchTerm || undefined,
+        category: categoryFilter === 'ALL' ? undefined : categoryFilter
+      })
       setProducts(data.content || [])
+      setTotalPages(data.totalPages || 1)
     } catch (error) {
       console.error("Failed to fetch products:", error)
       toast.error('Lỗi khi tải danh sách hàng hóa')
@@ -105,17 +124,39 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Kho hàng & Sản phẩm</h1>
           <p className="text-slate-500 dark:text-slate-400">Danh mục đồ uống, thức ăn và theo dõi số lượng tồn kho.</p>
         </div>
-        {user.role !== 'STAFF' && (
-          <button onClick={openAdd} className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-primary/20">
-            <Plus size={18} />
-            Nhập thêm hàng
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm sản phẩm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none focus:border-primary dark:text-white shadow-sm transition-all text-sm"
+            />
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none focus:border-primary dark:text-white shadow-sm transition-all text-sm font-medium"
+          >
+            <option value="ALL">Tất cả danh mục</option>
+            <option value="DRINK">Đồ uống</option>
+            <option value="FOOD">Thức ăn</option>
+            <option value="OTHER">Khác</option>
+          </select>
+          {user.role !== 'STAFF' && (
+            <button onClick={openAdd} className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 shrink-0 font-bold text-sm">
+              <Plus size={18} />
+              <span className="hidden sm:inline">Nhập thêm hàng</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 overflow-hidden rounded-2xl">
@@ -175,6 +216,26 @@ export default function Products() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between gap-2">
+            <button
+              disabled={page === 0}
+              onClick={() => setPage(p => p - 1)}
+              className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all border border-transparent hover:border-slate-200"
+            >
+              <ChevronRight size={18} className="rotate-180" />
+            </button>
+            <span className="text-xs font-bold text-slate-500">Trang {page + 1} / {totalPages}</span>
+            <button
+              disabled={page === totalPages - 1}
+              onClick={() => setPage(p => p + 1)}
+              className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all border border-transparent hover:border-slate-200"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
       </div>
       
       <ProductModal 

@@ -1,10 +1,13 @@
 package com.karaoke.backend.controller;
 
 import com.karaoke.backend.dto.request.ProductRequest;
+import com.karaoke.backend.dto.response.NewPageResponse;
 import com.karaoke.backend.dto.response.ProductResponse;
+import com.karaoke.backend.entity.Product;
 import com.karaoke.backend.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,8 +22,14 @@ public class ProductController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_STAFF', 'ROLE_RECEPTIONIST')")
-    public ResponseEntity<Page<ProductResponse>> getAllProducts(Pageable pageable) {
-        return ResponseEntity.ok(productService.getAllProducts(pageable));
+    public NewPageResponse<ProductResponse> getAllProducts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Product.ProductCategory category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size)
+    {
+        Pageable pageable = PageRequest.of(page, size);
+        return productService.getAllProducts(keyword, category, pageable);
     }
 
     @GetMapping("/{id}")
