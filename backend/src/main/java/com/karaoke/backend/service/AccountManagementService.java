@@ -15,4 +15,6 @@ public interface AccountManagementService
     AccountResponse updateStatus(Integer id, UpdateAccountStatusRequest request);
 
     void deleteAccount(Integer id);
+
+    String updateAccountAvatar(Integer id, org.springframework.web.multipart.MultipartFile file) throws java.io.IOException;
 }

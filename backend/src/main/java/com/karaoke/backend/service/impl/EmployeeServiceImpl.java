@@ -11,6 +11,7 @@ import com.karaoke.backend.exception.BusinessException;
 import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.AccountRepository;
 import com.karaoke.backend.repository.EmployeeRepository;
+import com.karaoke.backend.service.CloudinaryService;
 import com.karaoke.backend.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,7 +21,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 
 @Service
@@ -30,6 +33,7 @@ public class EmployeeServiceImpl implements EmployeeService
     private final EmployeeRepository employeeRepository;
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     public NewPageResponse<EmployeeResponse> getEmployees(int page, int size, String search, String roleStr)
@@ -54,10 +58,16 @@ public class EmployeeServiceImpl implements EmployeeService
 
     @Override
     @Transactional
-    public EmployeeResponse createEmployee(CreateEmployeeRequest request)
+    public EmployeeResponse createEmployee(CreateEmployeeRequest request, MultipartFile avatarFile) throws IOException
     {
         validateEmployeeCode(request.getCode(), null);
         validateUsername(request.getUsername(), null);
+
+        String uploadedAvatarUrl = null;
+        if (avatarFile != null && !avatarFile.isEmpty())
+        {
+            uploadedAvatarUrl = cloudinaryService.uploadImage(avatarFile);
+        }
 
         Employee employee = Employee.builder()
                 .code(request.getCode())
@@ -66,7 +76,6 @@ public class EmployeeServiceImpl implements EmployeeService
                 .baseSalary(defaultIfNull(request.getBaseSalary()))
                 .salaryPerHour(request.getSalaryPerHour())
                 .status(request.getStatus() == null ? Employee.EmployeeStatus.AVAILABLE : request.getStatus())
-                .avatarUrl(request.getAvatarUrl())
                 .build();
         employeeRepository.save(employee);
 
@@ -75,6 +84,7 @@ public class EmployeeServiceImpl implements EmployeeService
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .status(request.getAccountStatus() == null ? Account.AccountStatus.ACTIVE : request.getAccountStatus())
+                .avatarUrl(uploadedAvatarUrl)
                 .employee(employee)
                 .build();
         accountRepository.save(account);
@@ -171,7 +181,7 @@ public class EmployeeServiceImpl implements EmployeeService
                 .baseSalary(employee.getBaseSalary())
                 .salaryPerHour(employee.getSalaryPerHour())
                 .status(employee.getStatus())
-                .avatarUrl(employee.getAvatarUrl())
+                .avatarUrl(employee.getAccount().getAvatarUrl())
                 .accountId(account != null ? account.getId() : null)
                 .username(account != null ? account.getUsername() : null)
                 .role(account != null ? account.getRole() : null)

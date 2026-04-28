@@ -184,26 +184,7 @@ export default function StaffAssignment() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        {staffList.map((employee) => {
-          const count = getEmpShiftCount(employee.id)
-          return (
-            <div key={employee.id} className="flex items-center gap-2.5 px-4 py-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex items-center justify-center font-bold text-xs shrink-0">
-                {employee.name?.split(' ').pop()?.charAt(0)}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white leading-none">{employee.name}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  <span className={`uppercase font-bold tracking-wider ${employee.role === 'RECEPTIONIST' ? 'text-blue-500' : 'text-slate-400'}`}>{employee.role}</span>
-                  {' '}· {count} ca
-                </p>
-              </div>
-              <span className={`ml-1 w-2 h-2 rounded-full shrink-0 ${employee.status === 'AVAILABLE' ? 'bg-green-500' : employee.status === 'BUSY' ? 'bg-orange-500' : 'bg-slate-400'}`} />
-            </div>
-          )
-        })}
-      </div>
+
 
       <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 overflow-hidden rounded-2xl">
         <div className="overflow-x-auto">

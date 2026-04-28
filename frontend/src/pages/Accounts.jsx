@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, Shield, Power, Trash2, Edit2, CheckCircle2, XCircle, X } from 'lucide-react'
+import { Search, Shield, Power, Trash2, Edit2, CheckCircle2, XCircle, X, Camera, ZoomIn, ZoomOut } from 'lucide-react'
+import toast from 'react-hot-toast'
+import Cropper from 'react-easy-crop'
 import api from '../api/axios'
 
 const ROLE_OPTIONS = ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'STAFF']
@@ -43,6 +45,54 @@ const formatLastLogin = (value) => {
   }).format(new Date(value))
 }
 
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new window.Image()
+    image.addEventListener('load', () => resolve(image))
+    image.addEventListener('error', (error) => reject(error))
+    image.setAttribute('crossOrigin', 'anonymous')
+    image.src = url
+  })
+
+async function getCroppedImg(imageSrc, pixelCrop) {
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+
+  if (!ctx) {
+    return null
+  }
+
+  canvas.width = pixelCrop.width
+  canvas.height = pixelCrop.height
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  )
+
+  return new Promise((resolve) => {
+    canvas.toBlob((file) => {
+      resolve(URL.createObjectURL(file))
+    }, 'image/jpeg')
+  })
+}
+
+const readFile = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => resolve(reader.result), false)
+    reader.readAsDataURL(file)
+  })
+}
+
 export default function Accounts() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState('')
@@ -53,6 +103,16 @@ export default function Accounts() {
   const [editingAccountId, setEditingAccountId] = useState(null)
   const [form, setForm] = useState(defaultForm)
   const [formError, setFormError] = useState('')
+
+  const [imageSrc, setImageSrc] = useState(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  const [targetAccountId, setTargetAccountId] = useState(null)
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }, [])
 
   const fetchAccounts = async () => {
     try {
@@ -159,6 +219,43 @@ export default function Accounts() {
     }
   }
 
+  const handleFileChange = async (accountId, e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      let imageDataUrl = await readFile(file)
+      setImageSrc(imageDataUrl)
+      setTargetAccountId(accountId)
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+      e.target.value = ''
+    }
+  }
+
+  const handleSaveCrop = async () => {
+    try {
+      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels)
+      
+      const response = await fetch(croppedImage);
+      const blob = await response.blob();
+      const formData = new FormData();
+      formData.append('image', blob, 'avatar.jpg');
+      
+      const loadingToast = toast.loading('Đang cập nhật ảnh đại diện...');
+      const res = await api.post(`/accounts/${targetAccountId}/avatar`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.dismiss(loadingToast);
+      toast.success('Đã cập nhật ảnh đại diện');
+      
+      setAccounts((prev) => prev.map((item) => (item.id === targetAccountId ? { ...item, avatarUrl: res.data.avatar_url } : item)));
+      
+      setImageSrc(null)
+      setTargetAccountId(null)
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Cập nhật ảnh đại diện thất bại.'));
+    }
+  }
+
   const filteredAccounts = accounts.filter((account) => {
     const matchesSearch =
       account.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -224,8 +321,18 @@ export default function Accounts() {
             <div key={account.id} className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group border border-transparent hover:border-primary/20">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-slate-200 dark:shadow-none ${getRoleColor(account.role).replace('text-', 'bg-')}`}>
-                    {(account.employeeName || account.username || '?').charAt(0)}
+                  <div className="relative group/avatar shrink-0">
+                    {account.avatarUrl ? (
+                      <img src={account.avatarUrl} alt={account.username} className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-slate-200 dark:shadow-none" />
+                    ) : (
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-slate-200 dark:shadow-none ${getRoleColor(account.role).replace('text-', 'bg-')}`}>
+                        {(account.employeeName || account.username || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-2xl cursor-pointer">
+                      <Camera size={18} className="text-white" />
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(account.id, e)} />
+                    </label>
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 dark:text-white leading-none mb-1">{account.employeeName || 'Chưa liên kết nhân viên'}</h3>
@@ -346,6 +453,57 @@ export default function Accounts() {
           </div>
         </div>,
         document.getElementById('main-layout'),
+      )}
+
+      {imageSrc && document.getElementById('main-layout') && createPortal(
+        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl w-full max-w-lg flex flex-col relative z-10 animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Căn chỉnh ảnh đại diện</h3>
+              <button onClick={() => {setImageSrc(null); setTargetAccountId(null);}} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="relative w-full h-[400px] bg-slate-900">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-4 mb-6">
+                <span className="text-slate-500"><ZoomOut size={18} /></span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(e.target.value)}
+                  className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <span className="text-slate-500"><ZoomIn size={18} /></span>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => {setImageSrc(null); setTargetAccountId(null);}} className="px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                  Hủy
+                </button>
+                <button onClick={handleSaveCrop} className="px-5 py-2.5 rounded-xl font-medium text-white bg-primary hover:bg-primary-dark transition-colors shadow-md shadow-primary/20">
+                  Lưu ảnh
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.getElementById('main-layout')
       )}
     </div>
   )

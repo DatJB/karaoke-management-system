@@ -27,6 +27,7 @@ public class AccountManagementServiceImpl implements AccountManagementService
     private final AccountRepository accountRepository;
     private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.karaoke.backend.service.CloudinaryService cloudinaryService;
 
     @Override
     public NewPageResponse<AccountResponse> getAccounts(int page, int size, String search)
@@ -80,6 +81,16 @@ public class AccountManagementServiceImpl implements AccountManagementService
         accountRepository.delete(account);
     }
 
+    @Override
+    @Transactional
+    public String updateAccountAvatar(Integer id, org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        Account account = getAccount(id);
+        String newAvatarUrl = cloudinaryService.uploadImage(file);
+        account.setAvatarUrl(newAvatarUrl);
+        accountRepository.save(account);
+        return newAvatarUrl;
+    }
+
     private Account getAccount(Integer id)
     {
         return accountRepository.findById(id)
@@ -110,6 +121,7 @@ public class AccountManagementServiceImpl implements AccountManagementService
                 .employeeId(employee != null ? employee.getId() : null)
                 .employeeName(employee != null ? employee.getName() : null)
                 .lastLoginAt(account.getLastLoginAt())
+                .avatarUrl(account.getAvatarUrl())
                 .build();
     }
 }

@@ -76,10 +76,10 @@ public class DashboardServiceImpl implements DashboardService {
 
         List<DashboardResponse.RecentActivity> sortedActivities = activities.stream()
                 .sorted(Comparator.comparing(DashboardResponse.RecentActivity::getTimestamp).reversed())
-                .limit(10)
+                .limit(5)
                 .collect(Collectors.toList());
 
-        // Tính toán so sánh với ngày hôm qua (cùng thời điểm để công bằng)
+        // Tính toán so sánh với ngày hôm qua
         LocalDateTime startOfYesterday = startOfDay.minusDays(1);
         LocalDateTime endOfYesterday = LocalDateTime.now().minusDays(1);
 

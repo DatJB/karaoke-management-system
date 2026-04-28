@@ -1,12 +1,61 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Edit2, Trash2, X, Search } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Search, Camera, ZoomIn, ZoomOut, User } from 'lucide-react'
+import Cropper from 'react-easy-crop'
 import api from '../api/axios'
 
 const STATUS_LABELS = {
   AVAILABLE: 'SẴN SÀNG',
   BUSY: 'ĐANG BẬN',
   OFF: 'NGHỈ PHÉP',
+}
+
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new window.Image()
+    image.addEventListener('load', () => resolve(image))
+    image.addEventListener('error', (error) => reject(error))
+    image.setAttribute('crossOrigin', 'anonymous')
+    image.src = url
+  })
+
+async function getCroppedImg(imageSrc, pixelCrop) {
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+
+  if (!ctx) {
+    return null
+  }
+
+  canvas.width = pixelCrop.width
+  canvas.height = pixelCrop.height
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  )
+
+  return new Promise((resolve) => {
+    canvas.toBlob((file) => {
+      resolve(URL.createObjectURL(file))
+    }, 'image/jpeg')
+  })
+}
+
+const readFile = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => resolve(reader.result), false)
+    reader.readAsDataURL(file)
+  })
 }
 
 const ROLE_OPTIONS = ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'STAFF']
@@ -20,11 +69,12 @@ const defaultForm = {
   baseSalary: '',
   salaryPerHour: '',
   status: 'AVAILABLE',
-  avatarUrl: '',
   username: '',
   password: '',
   role: 'STAFF',
   accountStatus: 'ACTIVE',
+  avatarPreview: null,
+  avatarBlob: null,
 }
 
 const getErrorMessage = (error, fallback) =>
@@ -42,6 +92,39 @@ export default function Employees() {
   const [formError, setFormError] = useState('')
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
+  const [viewingImage, setViewingImage] = useState(null)
+
+  const [imageSrc, setImageSrc] = useState(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }, [])
+
+  const handleFileChange = async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      let imageDataUrl = await readFile(file)
+      setImageSrc(imageDataUrl)
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+      e.target.value = ''
+    }
+  }
+
+  const handleSaveCrop = async () => {
+    try {
+      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels)
+      const response = await fetch(croppedImage);
+      const blob = await response.blob();
+      setForm(prev => ({ ...prev, avatarPreview: croppedImage, avatarBlob: blob }))
+      setImageSrc(null)
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
@@ -92,7 +175,6 @@ export default function Employees() {
       baseSalary: employee.baseSalary ?? '',
       salaryPerHour: employee.salaryPerHour ?? '',
       status: employee.status || 'AVAILABLE',
-      avatarUrl: employee.avatarUrl || '',
       username: employee.username || '',
       password: '',
       role: employee.role || 'STAFF',
@@ -139,7 +221,6 @@ export default function Employees() {
       baseSalary: form.baseSalary === '' ? 0 : Number(form.baseSalary),
       salaryPerHour: Number(form.salaryPerHour),
       status: form.status,
-      avatarUrl: form.avatarUrl.trim() || null,
     }
 
     if (Number.isNaN(payload.baseSalary) || payload.baseSalary < 0 || payload.baseSalary >= Number.MAX_SAFE_INTEGER) {
@@ -182,7 +263,14 @@ export default function Employees() {
       setFormError('')
 
       if (isCreateMode) {
-        await api.post('/employees', result.payload)
+        const formData = new FormData()
+        formData.append('data', new Blob([JSON.stringify(result.payload)], { type: 'application/json' }))
+        if (form.avatarBlob) {
+          formData.append('avatar', form.avatarBlob, 'avatar.jpg')
+        }
+        await api.post('/employees', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
       } else {
         await api.put(`/employees/${modal.employeeId}`, result.payload)
       }
@@ -284,10 +372,22 @@ export default function Employees() {
               ) : (
                 filteredEmployees.map((emp) => (
                   <tr key={emp.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900 dark:text-white">{emp.name}</div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5">
-                        ID: {emp.id} {emp.username ? `- @${emp.username}` : ''}
+                    <td className="px-6 py-4 flex items-center gap-3">
+                      <div 
+                        className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center ${emp.avatarUrl ? 'cursor-pointer hover:opacity-80 transition-opacity shadow-sm' : ''}`}
+                        onClick={() => emp.avatarUrl && setViewingImage(emp.avatarUrl)}
+                      >
+                        {emp.avatarUrl ? (
+                          <img src={emp.avatarUrl} alt={emp.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-slate-400 font-bold text-lg">{emp.name.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900 dark:text-white">{emp.name}</div>
+                        <div className="text-xs text-slate-500 font-mono mt-0.5">
+                          ID: {emp.id} {emp.username ? `- @${emp.username}` : ''}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -385,18 +485,31 @@ export default function Employees() {
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Lương theo giờ</span>
                   <input type="number" min="0" value={form.salaryPerHour} onChange={(event) => handleInputChange('salaryPerHour', event.target.value)} className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50" />
                 </label>
-                <label className="space-y-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Avatar URL</span>
-                  <input value={form.avatarUrl} onChange={(event) => handleInputChange('avatarUrl', event.target.value)} className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50" />
-                </label>
               </div>
 
               {isCreateMode && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tài khoản đăng nhập</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Ảnh đại diện & Tài khoản</h4>
                     <span className="text-xs text-slate-400">Tạo cùng lúc với nhân viên</span>
                   </div>
+                  
+                  <div className="flex justify-center mb-6">
+                    <div className="relative group/avatar">
+                      <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-inner">
+                        {form.avatarPreview ? (
+                          <img src={form.avatarPreview} alt="Avatar Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={32} className="text-slate-400" />
+                        )}
+                      </div>
+                      <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-2xl cursor-pointer">
+                        <Camera size={24} className="text-white" />
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label className="space-y-2">
                       <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tài khoản</span>
@@ -434,6 +547,67 @@ export default function Employees() {
           </div>
         </div>,
         document.getElementById('main-layout'),
+      )}
+
+      {viewingImage && document.getElementById('main-layout') && createPortal(
+        <div className="absolute inset-0 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm z-[9999]" onClick={() => setViewingImage(null)}>
+          <button className="absolute top-4 right-4 text-slate-300 hover:text-white p-2 bg-slate-800/50 hover:bg-slate-800 rounded-full transition-all" onClick={() => setViewingImage(null)}>
+            <X size={24} />
+          </button>
+          <img src={viewingImage} alt="Chi tiết" className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()} />
+        </div>,
+        document.getElementById('main-layout')
+      )}
+
+      {imageSrc && document.getElementById('main-layout') && createPortal(
+        <div className="absolute inset-0 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm" style={{ zIndex: 10000 }}>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl w-full max-w-lg flex flex-col relative z-10 animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Căn chỉnh ảnh đại diện</h3>
+              <button onClick={() => setImageSrc(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="relative w-full h-[400px] bg-slate-900">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-4 mb-6">
+                <span className="text-slate-500"><ZoomOut size={18} /></span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(e.target.value)}
+                  className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <span className="text-slate-500"><ZoomIn size={18} /></span>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setImageSrc(null)} className="px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                  Hủy
+                </button>
+                <button onClick={handleSaveCrop} className="px-5 py-2.5 rounded-xl font-medium text-white bg-primary hover:bg-primary-dark transition-colors shadow-md shadow-primary/20">
+                  Lưu ảnh
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.getElementById('main-layout')
       )}
     </div>
   )

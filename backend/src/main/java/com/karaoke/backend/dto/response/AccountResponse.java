@@ -17,4 +17,5 @@ public class AccountResponse
     private Integer employeeId;
     private String employeeName;
     private LocalDateTime lastLoginAt;
+    private String avatarUrl;
 }

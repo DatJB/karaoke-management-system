@@ -56,4 +56,15 @@ public class AccountController
         accountManagementService.deleteAccount(id);
         return Map.of("message", "Xóa tài khoản thành công");
     }
+
+    @PostMapping("/{id}/avatar")
+    @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
+    public Map<String, String> updateAccountAvatar(
+            @PathVariable Integer id,
+            @RequestParam("image") org.springframework.web.multipart.MultipartFile file
+    ) throws java.io.IOException
+    {
+        String url = accountManagementService.updateAccountAvatar(id, file);
+        return Map.of("avatar_url", url);
+    }
 }

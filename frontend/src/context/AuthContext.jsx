@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
       token,
       role: localStorage.getItem("role"),
       name: localStorage.getItem("name"),
+      avatarUrl: localStorage.getItem("avatarUrl") || "",
     };
   });
 
@@ -29,11 +30,13 @@ export function AuthProvider({ children }) {
       token: data.token,
       role: data.role,
       name: data.name || username,
+      avatarUrl: data.avatarUrl || "",
     };
 
     localStorage.setItem("token", newUser.token);
     localStorage.setItem("role", newUser.role);
     localStorage.setItem("name", newUser.name);
+    localStorage.setItem("avatarUrl", newUser.avatarUrl);
 
     setUser(newUser);
 
@@ -44,14 +47,23 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("name");
+    localStorage.removeItem("avatarUrl");
 
     setUser(null);
 
     navigate("/login", { replace: true });
   };
 
+  const updateUser = (updates) => {
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    
+    if (updates.name !== undefined) localStorage.setItem("name", updates.name);
+    if (updates.avatarUrl !== undefined) localStorage.setItem("avatarUrl", updates.avatarUrl);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

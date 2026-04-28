@@ -119,9 +119,13 @@ export default function DashboardLayout() {
               }`
             }
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex shrink-0 items-center justify-center font-bold text-sm shadow-md">
-              {user?.name?.charAt(0)}
-            </div>
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0 shadow-md" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white flex shrink-0 items-center justify-center font-bold text-sm shadow-md">
+                {user?.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className={`overflow-hidden ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>
               <p className="text-sm font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{user.name}</p>
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 truncate">{user.role}</p>

@@ -105,7 +105,7 @@ export default function BonusPenaltyManagement() {
       closeModal()
     } catch (error) {
       console.error("Failed to save", error)
-      setFormError("Lỗi khi lưu dữ liệu.")
+      setFormError(error.message || "Lỗi khi lưu dữ liệu.")
     }
   }
 

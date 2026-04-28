@@ -9,12 +9,15 @@ import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.AccountRepository;
 import com.karaoke.backend.repository.BookingRepository;
 import com.karaoke.backend.repository.BookingRoomEmployeeRepository;
+import com.karaoke.backend.service.CloudinaryService;
 import com.karaoke.backend.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,6 +30,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final BookingRepository bookingRepository;
     private final BookingRoomEmployeeRepository bookingRoomEmployeeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     @Transactional(readOnly = true)
@@ -64,7 +68,7 @@ public class ProfileServiceImpl implements ProfileService {
                 .name(account.getEmployee() != null ? account.getEmployee().getName() : account.getUsername())
                 .role(account.getRole().name())
                 .phone(account.getEmployee() != null ? account.getEmployee().getPhone() : "")
-                .avatarUrl(account.getEmployee() != null ? account.getEmployee().getAvatarUrl() : "")
+                .avatarUrl(account.getAvatarUrl())
                 .recentActivities(activities)
                 .build();
     }
@@ -81,5 +85,18 @@ public class ProfileServiceImpl implements ProfileService {
 
         account.setPassword(passwordEncoder.encode(request.getNewPassword()));
         accountRepository.save(account);
+    }
+
+    @Override
+    @Transactional
+    public String updateAvatar(String username, MultipartFile file) throws IOException
+    {
+        Account account = accountRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + username));
+
+        String newAvatarUrl = cloudinaryService.uploadImage(file);
+        account.setAvatarUrl(newAvatarUrl);
+        accountRepository.save(account);
+        return newAvatarUrl;
     }
 }

@@ -43,6 +43,9 @@ public class Account {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @OneToMany(mappedBy = "account")
     @JsonIgnore
     private List<Notification> notifications;

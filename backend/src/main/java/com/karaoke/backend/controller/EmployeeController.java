@@ -8,10 +8,13 @@ import com.karaoke.backend.dto.response.PageResponse;
 import com.karaoke.backend.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Map;
 
 @RestController
@@ -33,12 +36,13 @@ public class EmployeeController
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     public EmployeeResponse createEmployee(
-            @Valid @RequestBody CreateEmployeeRequest request
-    ) {
-        return employeeService.createEmployee(request);
+            @RequestPart("data") CreateEmployeeRequest request,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatarFile) throws IOException
+    {
+        return employeeService.createEmployee(request, avatarFile);
     }
 
     @PutMapping("/{id}")

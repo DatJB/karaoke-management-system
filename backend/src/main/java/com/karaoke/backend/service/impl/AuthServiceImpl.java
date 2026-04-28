@@ -59,6 +59,14 @@ public class AuthServiceImpl implements AuthService {
                 employeeId
         );
 
-        return Map.of("token", token, "role", acc.getRole().name(), "name", acc.getEmployee().getName());
+        String employeeName = (acc.getEmployee() != null && acc.getEmployee().getName() != null) ? acc.getEmployee().getName() : acc.getUsername();
+        String avatarUrl = acc.getAvatarUrl() != null ? acc.getAvatarUrl() : "";
+
+        return Map.of(
+            "token", token,
+            "role", acc.getRole().name(),
+            "name", employeeName,
+            "avatarUrl", avatarUrl
+        );
     }
 }

@@ -24,37 +24,37 @@ export default function Dashboard() {
   }, [])
 
   const stats = [
-    { 
-      label: 'Doanh thu hôm nay', 
-      value: data ? `${(data.todayTotalRevenue).toLocaleString()} VND` : '0 VND', 
-      icon: DollarSign, 
-      trend: data ? data.revenueChange : 0, 
-      color: 'text-green-500', 
-      bg: 'bg-green-500/10' 
+    {
+      label: 'Doanh thu hôm nay',
+      value: data ? `${(data.todayTotalRevenue).toLocaleString()} VND` : '0 VND',
+      icon: DollarSign,
+      trend: data ? data.revenueChange : 0,
+      color: 'text-green-500',
+      bg: 'bg-green-500/10'
     },
-    { 
-      label: 'Số phòng đang hát', 
-      value: data ? data.activeRooms : '0', 
-      icon: Grid, 
-      trend: null, 
-      color: 'text-primary', 
-      bg: 'bg-primary/10' 
+    {
+      label: 'Số phòng đang hát',
+      value: data ? data.activeRooms : '0',
+      icon: Grid,
+      trend: null,
+      color: 'text-primary',
+      bg: 'bg-primary/10'
     },
-    { 
-      label: 'Lượt khách hôm nay', 
-      value: data ? data.todayTotalCustomers.toLocaleString() : '0', 
-      icon: Users, 
-      trend: data ? data.customersChange : 0, 
-      color: 'text-blue-500', 
-      bg: 'bg-blue-500/10' 
+    {
+      label: 'Lượt khách hôm nay',
+      value: data ? data.todayTotalCustomers.toLocaleString() : '0',
+      icon: Users,
+      trend: data ? data.customersChange : 0,
+      color: 'text-blue-500',
+      bg: 'bg-blue-500/10'
     },
-    { 
-      label: 'Số đơn đặt hôm nay', 
-      value: data ? data.todayTotalBookings.toLocaleString() : '0', 
-      icon: TrendingUp, 
-      trend: data ? data.bookingsChange : 0, 
-      color: 'text-purple-500', 
-      bg: 'bg-purple-500/10' 
+    {
+      label: 'Số đơn đặt hôm nay',
+      value: data ? data.todayTotalBookings.toLocaleString() : '0',
+      icon: TrendingUp,
+      trend: data ? data.bookingsChange : 0,
+      color: 'text-purple-500',
+      bg: 'bg-purple-500/10'
     },
   ]
 
@@ -90,7 +90,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">
-          Xin chào, {user?.name || 'Admin'}
+          Tổng quan
         </h1>
         <p className="text-slate-500 dark:text-slate-400">Theo dõi hoạt động kinh doanh ngày hôm nay.</p>
       </div>
@@ -126,27 +126,26 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                <Tooltip 
-                  cursor={{fill: '#8ca1af', opacity: 0.1}}
-                  contentStyle={{borderRadius: '12px', border: 'none', background: '#1e293b', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                <Tooltip
+                  cursor={{ fill: '#8ca1af', opacity: 0.1 }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', background: '#1e293b', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
                 <Bar dataKey="revenue" fill="#7c3aed" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
-        
+
         <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Hoạt động gần đây</h3>
           <div className="space-y-4">
             {data?.recentActivities?.length > 0 ? data.recentActivities.map((activity, idx) => (
               <div key={idx} className="flex items-start gap-4">
-                <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                  activity.type === 'BOOKING' ? 'bg-primary' : 
-                  activity.type === 'PAYMENT' ? 'bg-green-500' : 'bg-amber-500'
-                }`} />
+                <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${activity.type === 'BOOKING' ? 'bg-primary' :
+                    activity.type === 'PAYMENT' ? 'bg-green-500' : 'bg-amber-500'
+                  }`} />
                 <div>
                   <p className="text-sm font-medium text-slate-900 dark:text-white leading-tight">
                     {activity.description}
