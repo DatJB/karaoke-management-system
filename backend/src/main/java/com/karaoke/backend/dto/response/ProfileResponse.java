@@ -10,6 +10,7 @@ import java.util.List;
 public class ProfileResponse {
     private String username;
     private String name;
+    private String code;
     private String role;
     private String phone;
     private String avatarUrl;

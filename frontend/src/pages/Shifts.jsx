@@ -16,9 +16,9 @@ const formatDateLabel = (isoDate) => {
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
 
-  if (date.getTime() === today.getTime()) return 'Hom nay'
-  if (date.getTime() === tomorrow.getTime()) return 'Ngay mai'
-  if (date.getTime() === yesterday.getTime()) return 'Hom qua'
+  if (date.getTime() === today.getTime()) return 'Hôm nay'
+  if (date.getTime() === tomorrow.getTime()) return 'Ngày mai'
+  if (date.getTime() === yesterday.getTime()) return 'Hôm qua'
 
   return new Intl.DateTimeFormat('vi-VN', {
     weekday: 'long',
@@ -56,7 +56,7 @@ export default function Shifts() {
         const response = await api.get('/schedules/me')
         setSchedules(response.data || [])
       } catch (err) {
-        setError(getErrorMessage(err, 'Khong the tai lich lam viec cua ban.'))
+        setError(getErrorMessage(err, 'Không thể tải lịch làm việc của bạn.'))
       } finally {
         setLoading(false)
       }
@@ -90,8 +90,8 @@ export default function Shifts() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Ca lam viec cua toi</h1>
-          <p className="text-slate-500 dark:text-slate-400">Xem toan bo lich truc duoc phan cong va lich su da lam.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Ca làm việc của tôi</h1>
+          <p className="text-slate-500 dark:text-slate-400">Xem toàn bộ lịch trực được phân công và lịch sử đã làm.</p>
         </div>
       </div>
 
@@ -107,7 +107,7 @@ export default function Shifts() {
             <Calendar size={24} />
           </div>
           <div>
-            <p className="text-sm text-slate-500">Tong ca tuan nay</p>
+            <p className="text-sm text-slate-500">Tổng ca tuần này</p>
             <h4 className="border-none font-bold text-xl dark:text-white">{stats.currentWeek} Ca</h4>
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function Shifts() {
             <CheckCircle size={24} />
           </div>
           <div>
-            <p className="text-sm text-slate-500">Da hoan thanh</p>
+            <p className="text-sm text-slate-500">Đã hoàn thành</p>
             <h4 className="border-none font-bold text-xl dark:text-white">{stats.completed} Ca</h4>
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function Shifts() {
             <Clock size={24} />
           </div>
           <div>
-            <p className="text-sm text-slate-500">Sap truc</p>
+            <p className="text-sm text-slate-500">Sắp trực</p>
             <h4 className="border-none font-bold text-xl dark:text-white">{stats.upcoming} Ca</h4>
           </div>
         </div>
@@ -136,24 +136,24 @@ export default function Shifts() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-                <th className="px-6 py-4 font-medium text-sm">Ngay</th>
-                <th className="px-6 py-4 font-medium text-sm">Ca lam viec</th>
-                <th className="px-6 py-4 font-medium text-sm">Gio giac</th>
-                <th className="px-6 py-4 font-medium text-sm">Ghi chu</th>
-                <th className="px-6 py-4 font-medium text-sm text-right">Trang thai</th>
+                <th className="px-6 py-4 font-medium text-sm">Ngày</th>
+                <th className="px-6 py-4 font-medium text-sm">Ca làm việc</th>
+                <th className="px-6 py-4 font-medium text-sm">Giờ giấc</th>
+                <th className="px-6 py-4 font-medium text-sm">Ghi chú</th>
+                <th className="px-6 py-4 font-medium text-sm text-right">Trạng thái</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Dang tai du lieu...
+                    Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : schedules.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Ban chua co lich lam viec nao.
+                    Bạn chưa có lịch làm việc nào.
                   </td>
                 </tr>
               ) : (
@@ -187,7 +187,7 @@ export default function Shifts() {
                             ? 'bg-primary text-white shadow-primary/30'
                             : 'bg-slate-200/50 text-slate-600 dark:bg-slate-700/50 dark:text-slate-400'
                         }`}>
-                          {isUpcoming ? 'SAP TOI' : 'HOAN THANH'}
+                          {isUpcoming ? 'SẮP TỚI' : 'HOÀN THÀNH'}
                         </span>
                       </td>
                     </tr>

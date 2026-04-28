@@ -66,10 +66,11 @@ public class ProfileServiceImpl implements ProfileService {
         return ProfileResponse.builder()
                 .username(account.getUsername())
                 .name(account.getEmployee() != null ? account.getEmployee().getName() : account.getUsername())
+                .code(account.getEmployee() != null ? account.getEmployee().getCode() : "")
                 .role(account.getRole().name())
                 .phone(account.getEmployee() != null ? account.getEmployee().getPhone() : "")
                 .avatarUrl(account.getAvatarUrl())
-                .recentActivities(activities)
+                .recentActivities(activities.stream().limit(3).toList())
                 .build();
     }
 

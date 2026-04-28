@@ -49,7 +49,7 @@ public class EmployeeServiceImpl implements EmployeeService
             }
         }
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "code"));
         Page<EmployeeResponse> employeePage = employeeRepository.searchEmployees(search, roleEnum, pageable)
                 .map(this::toResponse);
 

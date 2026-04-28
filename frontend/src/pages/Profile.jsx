@@ -199,7 +199,7 @@ export default function Profile() {
               <div className="flex items-center gap-2 mt-2 justify-center md:justify-start">
                 <ShieldCheck size={16} className="text-primary" />
                 <p className="text-primary font-bold uppercase tracking-widest text-sm">{profileData?.role || user.role}</p>
-                <span className="text-slate-400 text-sm ml-2">(@{profileData?.username})</span>
+                <span className="text-slate-400 text-sm ml-2">(@{profileData?.username || user?.username || 'user'})</span>
               </div>
             </div>
             
@@ -212,6 +212,13 @@ export default function Profile() {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-slate-200 dark:border-slate-800 mt-6 md:w-full">
+            <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
+              <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><User size={18} className="text-slate-500" /></div>
+              <div>
+                <p className="text-xs text-slate-400">Mã nhân viên</p>
+                <p className="font-medium text-slate-900 dark:text-white">{profileData?.code || profileData?.id || user?.id || 'Chưa cập nhật'}</p>
+              </div>
+            </div>
             <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
               <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><Phone size={18} className="text-slate-500" /></div>
               <div>

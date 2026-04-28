@@ -386,7 +386,7 @@ export default function Employees() {
                       <div>
                         <div className="font-semibold text-slate-900 dark:text-white">{emp.name}</div>
                         <div className="text-xs text-slate-500 font-mono mt-0.5">
-                          ID: {emp.id} {emp.username ? `- @${emp.username}` : ''}
+                          ID: {emp.code || emp.id} {emp.username ? `- @${emp.username}` : ''}
                         </div>
                       </div>
                     </td>
