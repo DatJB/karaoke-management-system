@@ -400,7 +400,7 @@ export default function Invoices() {
                             <div className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">{item.productName}</div>
                             <div className="text-[9px] text-slate-400 font-bold uppercase">{item.itemCategory || 'Sản phẩm'}</div>
                           </td>
-                          <td className="px-5 py-3 text-slate-500 font-medium">{item.roomName}</td>
+                          <td className="px-5 py-3 text-slate-500 font-medium">{item.roomName || '—'}</td>
                           <td className="px-5 py-3 text-center font-bold text-slate-700 dark:text-slate-300">x{item.quantity}</td>
                           <td className="px-5 py-3 text-right font-medium text-slate-600 dark:text-slate-400">{formatCurrency(item.unitPrice)}đ</td>
                           <td className="px-5 py-3 text-right font-black text-slate-900 dark:text-white">{formatCurrency(item.totalAmount)}đ</td>

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { X, Calendar, Loader2, ArrowLeft, Clock, MapPin, ClipboardList, Trash2 as TrashIcon, Edit2, PlusCircle, Check, Save, LogIn, LogOut } from 'lucide-react'
 import { getCustomerBookings } from '../../api/customerApi'
 import { getBookingDetail, removeRoomFromBooking, deleteBooking, updateBookingInfo, addRoomToBooking, checkInAllRooms, checkoutAllRooms, checkInSingleRoom, checkoutSingleRoom } from '../../api/bookingApi'
-import { getAllRooms } from '../../api/roomApi'
+import { getAllRooms, getRoomEmployee } from '../../api/roomApi'
 
 export default function BookingHistoryModal({ isOpen, onClose, customer }) {
   const [bookings, setBookings] = useState([])
@@ -53,6 +53,21 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
     try {
       setLoadingDetail(true)
       const data = await getBookingDetail(id)
+      
+      if (data.roomDetails) {
+        const roomsWithEmployees = await Promise.all(
+          data.roomDetails.map(async (room) => {
+             try {
+                const employees = await getRoomEmployee(room.bookingRoomId);
+                return { ...room, employees };
+             } catch (e) {
+                return { ...room, employees: [] };
+             }
+          })
+        );
+        data.roomDetails = roomsWithEmployees;
+      }
+      
       setSelectedBookingDetail(data)
     } catch (err) {
       console.error('Failed to fetch booking detail:', err)
@@ -321,6 +336,23 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                             <div>
                                <div className="font-bold text-slate-900 dark:text-white">{room.roomName}</div>
                                <div className="text-[10px] text-slate-500 uppercase font-medium">{room.roomType}</div>
+                               {room.employees && room.employees.length > 0 && (
+                                  <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 flex flex-col gap-1">
+                                     <span className="font-semibold text-primary">Nhân viên phục vụ:</span>
+                                     <div className="flex flex-col gap-0.5 pl-2">
+                                       {room.employees.map((e, idx) => (
+                                          <div key={idx} className="flex items-center gap-2">
+                                            <span>• {e.employeeName}</span>
+                                            {e.startTime && (
+                                              <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                                {new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {e.endTime ? new Date(e.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Hiện tại'}
+                                              </span>
+                                            )}
+                                          </div>
+                                       ))}
+                                     </div>
+                                  </div>
+                               )}
                             </div>
                          </div>
                          <div className="flex items-center gap-2">

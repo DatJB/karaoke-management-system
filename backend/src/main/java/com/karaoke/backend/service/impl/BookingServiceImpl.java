@@ -464,6 +464,16 @@ public class BookingServiceImpl implements BookingService
         room.setStatus(Room.RoomStatus.AVAILABLE);
         roomRepository.save(room);
 
+        List<BookingRoomEmployee> employees = bookingRoom.getEmployees();
+        for (BookingRoomEmployee emp : employees)
+        {
+            if (emp.getEndTime() == null)
+            {
+                emp.setEndTime(LocalDateTime.now());
+                emp.getEmployee().setStatus(Employee.EmployeeStatus.AVAILABLE);
+            }
+        }
+
         boolean isAllRoomsDone = booking.getBookingRooms().stream()
                 .allMatch(br -> br.getStatus().name().equals("DONE") ||
                         br.getStatus().name().equals("CANCELLED"));
@@ -500,6 +510,16 @@ public class BookingServiceImpl implements BookingService
                 Room room = br.getRoom();
                 room.setStatus(Room.RoomStatus.AVAILABLE);
                 roomRepository.save(room);
+
+                List<BookingRoomEmployee> employees = br.getEmployees();
+                for (BookingRoomEmployee emp : employees)
+                {
+                    if (emp.getEndTime() == null)
+                    {
+                        emp.setEndTime(LocalDateTime.now());
+                        emp.getEmployee().setStatus(Employee.EmployeeStatus.AVAILABLE);
+                    }
+                }
 
                 hasRoomCheckedOut = true;
             }

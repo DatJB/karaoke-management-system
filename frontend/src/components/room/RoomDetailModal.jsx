@@ -4,7 +4,7 @@ import { X, ArrowLeft, Search, CheckCircle2, Pencil, Trash2, Loader2, ArrowRight
 import { mockCustomers, mockEmployees, mockProducts } from '../../mock/data'
 import { ROOM_STATUS_COLOR, ROOM_STATUS_LABEL } from './RoomCard'
 import ConfirmModal from '../common/ConfirmModal'
-import { getRoomDetail, assignEmployeeToRoom, removeEmployeeFromRoom } from '../../api/roomApi'
+import { getRoomDetail, assignEmployeeToRoom, removeEmployeeFromRoom, getRoomEmployee } from '../../api/roomApi'
 import { createBooking, checkoutSingleRoom } from '../../api/bookingApi'
 import { getAllCustomers } from '../../api/customerApi'
 import { getRoomOrders, addOrderToRoom, updateOrderItem, deleteOrderItem } from '../../api/order'
@@ -105,6 +105,7 @@ export default function RoomDetailModal({
   const [availableEmployees, setAvailableEmployees] = useState([])
   const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false)
+  const [initialActiveStaffIds, setInitialActiveStaffIds] = useState([])
 
   const currentRoom = detailedRoom || selectedRoom
 
@@ -129,8 +130,21 @@ export default function RoomDetailModal({
 
   useEffect(() => {
     if (bookingStep === 2) {
-      if (bookingAction === 'ASSIGN_STAFF' && currentRoom?.staffList) {
-        setAssignedStaff(currentRoom.staffList)
+      if (bookingAction === 'ASSIGN_STAFF' && currentRoom?.bookingRoomId) {
+        getRoomEmployee(currentRoom.bookingRoomId).then(data => {
+          const mappedStaff = data.map(item => ({
+            id: item.employeeId,
+            name: item.employeeName,
+            code: item.employeeCode,
+            startTime: item.startTime,
+            endTime: item.endTime
+          }));
+          setAssignedStaff(mappedStaff)
+          setInitialActiveStaffIds(data.filter(item => !item.endTime).map(item => item.employeeId))
+        }).catch(err => {
+          console.error('Failed to fetch assigned staff:', err);
+          setAssignedStaff([]);
+        });
       } else {
         setAssignedStaff([])
       }
@@ -327,17 +341,41 @@ export default function RoomDetailModal({
                   </label>
                   <div className="flex flex-col gap-2">
                     {assignedStaff.map(staff => (
-                      <div key={staff.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                      <div key={staff.id} className={`flex items-center justify-between p-3 bg-white dark:bg-slate-800 border ${staff.endTime ? 'border-dashed border-slate-300 dark:border-slate-600 opacity-70 grayscale-[50%]' : 'border-slate-200 dark:border-slate-700 shadow-sm'} rounded-xl transition-all`}>
                         <div className="flex flex-col gap-1">
                           <span className="font-bold text-slate-900 dark:text-white">{staff.name}</span>
-                          <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono w-fit">ID:{staff.id}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono w-fit">ID:{staff.id}</span>
+                            {staff.startTime && (
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(staff.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {staff.endTime ? new Date(staff.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Hiện tại'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <button 
-                          onClick={() => setAssignedStaff(prev => prev.filter(s => s.id !== staff.id))}
-                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {staff.endTime ? (
+                          <button 
+                            onClick={() => setAssignedStaff(prev => prev.map(s => s.id === staff.id ? { ...s, endTime: null } : s))}
+                            className="p-1.5 px-3 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 border border-green-200 dark:border-green-800 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-sm"
+                            title="Thêm lại vào phòng"
+                          >
+                            <Plus size={14} /> Thêm lại
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              if (staff.startTime) {
+                                setAssignedStaff(prev => prev.map(s => s.id === staff.id ? { ...s, endTime: new Date().toISOString() } : s))
+                              } else {
+                                setAssignedStaff(prev => prev.filter(s => s.id !== staff.id))
+                              }
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Xóa"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -394,11 +432,10 @@ export default function RoomDetailModal({
                 if (bookingAction === 'ASSIGN_STAFF') {
                   try {
                     setSaving(true);
-                    const originalStaffIds = currentRoom?.staffList?.map(s => s.id) || [];
-                    const newStaffIds = assignedStaff.map(s => s.id);
+                    const newActiveIds = assignedStaff.filter(s => !s.endTime).map(s => s.id);
                     
-                    const toAdd = newStaffIds.filter(id => !originalStaffIds.includes(id));
-                    const toRemove = originalStaffIds.filter(id => !newStaffIds.includes(id));
+                    const toAdd = newActiveIds.filter(id => !initialActiveStaffIds.includes(id));
+                    const toRemove = initialActiveStaffIds.filter(id => !newActiveIds.includes(id));
                     
                     const promises = [
                       ...toAdd.map(id => assignEmployeeToRoom(currentRoom.id, id)),

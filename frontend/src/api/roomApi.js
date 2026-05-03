@@ -34,3 +34,8 @@ export const removeEmployeeFromRoom = async (roomId, employeeId) => {
     const response = await api.delete(`/rooms/${roomId}/employees/${employeeId}`);
     return response.data;
 };
+
+export const getRoomEmployee = async (roomId) => {
+    const response = await api.get(`/rooms/${roomId}/employees`);
+    return response.data;
+};

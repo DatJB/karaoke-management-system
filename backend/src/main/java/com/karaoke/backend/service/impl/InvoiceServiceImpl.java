@@ -2,9 +2,10 @@ package com.karaoke.backend.service.impl;
 
 import com.karaoke.backend.dto.response.*;
 import com.karaoke.backend.entity.*;
-import com.karaoke.backend.exception.BusinessException;
 import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.InvoiceRepository;
+import com.karaoke.backend.repository.RoomPriceRepository;
+import com.karaoke.backend.repository.RoomPriceSpecialRepository;
 import com.karaoke.backend.service.InvoiceService;
 import com.karaoke.backend.service.KaraokePricingEngine;
 import jakarta.transaction.Transactional;
@@ -17,8 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.math.BigDecimal;
 
@@ -28,6 +29,8 @@ public class InvoiceServiceImpl implements InvoiceService
 {
     private final InvoiceRepository invoiceRepository;
     private final KaraokePricingEngine pricingEngine;
+    private final RoomPriceRepository roomPriceRepository;
+    private final RoomPriceSpecialRepository roomPriceSpecialRepository;
 
     @Override
     @Transactional
@@ -118,6 +121,7 @@ public class InvoiceServiceImpl implements InvoiceService
                 dto.setId(null);
                 dto.setBookingRoomId(br.getId());
                 dto.setRoomName(br.getRoom().getName());
+                dto.setPricePerHour(calculateCurrentRoomPrice(br.getRoom().getId()));
                 dto.setCheckinTime(br.getCheckinTime());
                 
                 LocalDateTime endCalc = br.getCheckoutTime() != null ? br.getCheckoutTime() : now;
@@ -267,5 +271,22 @@ public class InvoiceServiceImpl implements InvoiceService
         invoice.setPaidAt(now);
 
         invoiceRepository.save(invoice);
+    }
+
+    public BigDecimal calculateCurrentRoomPrice(Integer roomId)
+    {
+        LocalDateTime now = LocalDateTime.now();
+        LocalTime currentTime = now.toLocalTime();
+        LocalDate today = now.toLocalDate();
+        String dayOfWeekStr = now.getDayOfWeek().name().substring(0, 3).toUpperCase();
+        RoomPrice.DayOfWeek dayEnum = RoomPrice.DayOfWeek.valueOf(dayOfWeekStr);
+
+        Double specialPrice = roomPriceSpecialRepository.findPrice(roomId, today, currentTime);
+        if (specialPrice != null) BigDecimal.valueOf(specialPrice);
+
+        Double normalPrice = roomPriceRepository.findPrice(roomId, dayEnum, currentTime);
+        if (normalPrice != null) return BigDecimal.valueOf(normalPrice);
+
+        return BigDecimal.valueOf(0.0);
     }
 }

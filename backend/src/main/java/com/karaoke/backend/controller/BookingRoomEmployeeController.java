@@ -1,5 +1,6 @@
 package com.karaoke.backend.controller;
 
+import com.karaoke.backend.dto.response.RoomEmployeeResponse;
 import com.karaoke.backend.entity.BookingRoomEmployee;
 import com.karaoke.backend.service.BookingRoomEmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -7,11 +8,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/rooms/{roomId}/employees")
 @RequiredArgsConstructor
 public class BookingRoomEmployeeController {
     private final BookingRoomEmployeeService bookingRoomEmployeeService;
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
+    public ResponseEntity<List<RoomEmployeeResponse>> getRoomEmployees(@PathVariable Integer roomId)
+    {
+        return ResponseEntity.ok(bookingRoomEmployeeService.getRoomEmployee(roomId));
+    }
 
     @PostMapping("/{employeeId}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_RECEPTIONIST')")

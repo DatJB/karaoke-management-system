@@ -24,11 +24,15 @@ public class OrderServiceImpl implements OrderService {
     private final InvoiceItemRepository invoiceItemRepository;
     private final ProductRepository productRepository;
 
+    private final BookingRoomRepository bookingRoomRepository;
+
     @Override
     @Transactional(readOnly = true)
     public List<OrderItemResponse> getRoomOrders(Integer roomId) {
         Invoice invoice = getActiveInvoiceByRoom(roomId);
+        BookingRoom bookingRoom = getActiveBookingRoom(roomId);
         return invoice.getItems().stream()
+                .filter(i -> i.getBookingRoom() == null || i.getBookingRoom().getId().equals(bookingRoom.getId()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -37,6 +41,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderItemResponse addOrder(Integer roomId, OrderRequest request) {
         Invoice invoice = getActiveInvoiceByRoom(roomId);
+        BookingRoom bookingRoom = getActiveBookingRoom(roomId);
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
@@ -48,7 +53,7 @@ public class OrderServiceImpl implements OrderService {
         productRepository.save(product);
 
         InvoiceItem item = invoice.getItems().stream()
-                .filter(i -> i.getProduct().getId().equals(product.getId()))
+                .filter(i -> i.getProduct().getId().equals(product.getId()) && i.getBookingRoom() != null && i.getBookingRoom().getId().equals(bookingRoom.getId()))
                 .findFirst()
                 .orElse(null);
 
@@ -58,6 +63,7 @@ public class OrderServiceImpl implements OrderService {
         } else {
             item = InvoiceItem.builder()
                     .invoice(invoice)
+                    .bookingRoom(bookingRoom)
                     .product(product)
                     .quantity(request.getQuantity())
                     .unitPrice(product.getPrice())
@@ -76,10 +82,11 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderItemResponse updateOrderItem(Integer roomId, Integer itemId, Integer quantity) {
         Invoice invoice = getActiveInvoiceByRoom(roomId);
+        BookingRoom bookingRoom = getActiveBookingRoom(roomId);
         InvoiceItem item = invoiceItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order item not found"));
 
-        if (!item.getInvoice().getId().equals(invoice.getId())) {
+        if (!item.getInvoice().getId().equals(invoice.getId()) || (item.getBookingRoom() != null && !item.getBookingRoom().getId().equals(bookingRoom.getId()))) {
             throw new IllegalArgumentException("Item does not belong to this room's invoice");
         }
 
@@ -106,10 +113,11 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void deleteOrderItem(Integer roomId, Integer itemId) {
         Invoice invoice = getActiveInvoiceByRoom(roomId);
+        BookingRoom bookingRoom = getActiveBookingRoom(roomId);
         InvoiceItem item = invoiceItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order item not found"));
 
-        if (!item.getInvoice().getId().equals(invoice.getId())) {
+        if (!item.getInvoice().getId().equals(invoice.getId()) || (item.getBookingRoom() != null && !item.getBookingRoom().getId().equals(bookingRoom.getId()))) {
             throw new IllegalArgumentException("Item does not belong to this room's invoice");
         }
 
@@ -120,6 +128,15 @@ public class OrderServiceImpl implements OrderService {
         invoice.getItems().remove(item);
         invoiceItemRepository.delete(item);
         updateInvoiceTotals(invoice);
+    }
+
+    private BookingRoom getActiveBookingRoom(Integer roomId) {
+        List<BookingRoom> activeRooms = bookingRoomRepository.findByRoomIdAndBookingStatus(
+                roomId, Booking.BookingStatus.CHECKED_IN);
+        if (activeRooms.isEmpty()) {
+            throw new ResourceNotFoundException("No active booking room found for room id: " + roomId);
+        }
+        return activeRooms.get(0);
     }
 
     private Invoice getActiveInvoiceByRoom(Integer roomId) {
