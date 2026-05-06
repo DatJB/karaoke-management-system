@@ -6,6 +6,7 @@ import com.karaoke.backend.entity.Feedback;
 import com.karaoke.backend.entity.FeedbackTag;
 import com.karaoke.backend.repository.AiInsightReportRepository;
 import com.karaoke.backend.repository.FeedbackRepository;
+import com.karaoke.backend.repository.WeeklyInsightReportRepository;
 import com.karaoke.backend.service.AiDashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,7 +17,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.karaoke.backend.entity.AiInsightReport.Category.*;
@@ -27,6 +30,7 @@ public class AiDashboardServiceImpl implements AiDashboardService
 {
     private final FeedbackRepository feedbackRepository;
     private final AiInsightReportRepository insightRepository;
+    private final WeeklyInsightReportRepository weeklyInsightReportRepository;
 
     @Override
     public AiDashboardResponse getDashboardData(LocalDate startDate, LocalDate endDate, int page, int size, String sortBy)
@@ -126,5 +130,27 @@ public class AiDashboardServiceImpl implements AiDashboardService
 //            default -> "Khác";
 //        };
 //    }
+
+    @Override
+    public Optional<WeeklyInsightDTO> getWeeklyReport(Integer week, Integer year)
+    {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM");
+
+        return weeklyInsightReportRepository.findByWeekNumberAndReportYear(week, year)
+                .map(report -> WeeklyInsightDTO.builder()
+                        .weekNumber(report.getWeekNumber())
+                        .reportYear(report.getReportYear())
+                        .dateRange(report.getStartDate().format(formatter) + " - " + report.getEndDate().format(formatter))
+                        .totalFeedbacks(report.getTotalFeedbacks())
+                        .averageRating(report.getAverageRating())
+                        .averageSentimentScore(report.getAverageSentimentScore())
+                        .positiveCount(report.getPositiveCount())
+                        .negativeCount(report.getNegativeCount())
+                        .topIssuesSummary(report.getTopIssuesSummary())
+                        .weeklyActionPlan(report.getWeeklyActionPlan() != null
+                                ? List.of(report.getWeeklyActionPlan().split("\\n"))
+                                : List.of())
+                        .build());
+    }
 }
 

@@ -3,8 +3,10 @@ package com.karaoke.backend.service.impl;
 import com.karaoke.backend.entity.AiInsightReport;
 import com.karaoke.backend.entity.Feedback;
 import com.karaoke.backend.entity.FeedbackTag;
+import com.karaoke.backend.entity.WeeklyInsightReport;
 import com.karaoke.backend.repository.AiInsightReportRepository;
 import com.karaoke.backend.repository.FeedbackRepository;
+import com.karaoke.backend.repository.WeeklyInsightReportRepository;
 import com.karaoke.backend.service.AiIntegrationService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +23,15 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -35,6 +42,7 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final AiInsightReportRepository aiInsightReportRepository;
+    private final WeeklyInsightReportRepository weeklyInsightReportRepository;
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -186,5 +194,77 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
         } catch (Exception e) {
             log.error("Lỗi tổng hợp báo cáo ngày {}: {}", date, e.getMessage());
         }
+    }
+
+    @Transactional
+    public void generateWeeklyReport(LocalDate dateInWeek)
+    {
+        WeekFields weekFields = WeekFields.ISO;
+        LocalDate startDate = dateInWeek.with(DayOfWeek.MONDAY);
+        LocalDate endDate = dateInWeek.with(DayOfWeek.SUNDAY);
+        int weekNumber = dateInWeek.get(weekFields.weekOfWeekBasedYear());
+        int reportYear = dateInWeek.get(weekFields.weekBasedYear());
+
+        List<Feedback> weeklyFeedbacks = feedbackRepository.findByCreatedAtBetween(startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+        if (weeklyFeedbacks.isEmpty()) return;
+
+        int total = weeklyFeedbacks.size();
+        double avgRating = weeklyFeedbacks.stream().mapToDouble(f -> f.getRating() != null ? f.getRating() : 0.0).average().orElse(0.0);
+        double avgSentiment = weeklyFeedbacks.stream().mapToDouble(f -> f.getSentimentScore() != null ? f.getSentimentScore().doubleValue() : 0.5).average().orElse(3);
+
+        long positive = weeklyFeedbacks.stream().filter(f -> "POSITIVE".equals(f.getSentimentLabel().name())).count();
+        long negative = weeklyFeedbacks.stream().filter(f -> "NEGATIVE".equals(f.getSentimentLabel().name())).count();
+
+        List<AiInsightReport> dailyReports = aiInsightReportRepository.findByReportDateBetweenOrderByCreatedAtDesc(startDate, endDate);
+        String dailySummaryText = dailyReports.stream()
+                .map(r -> String.format("- %s: %s (Mức độ: %s)", r.getCategory(), r.getInsightTitle(), r.getSeverityLevel()))
+                .collect(Collectors.joining("\n"));
+
+        String prompt = "Bạn là chuyên gia phân tích dữ liệu kinh doanh Karaoke. " +
+                "Dưới đây là tóm tắt các vấn đề trong tuần " + weekNumber + " từ các báo cáo ngày:\n" + dailySummaryText + "\n" +
+                "Hãy phân tích tổng quan và trả về JSON với 2 trường:\n" +
+                "1. 'topIssuesSummary': Tóm tắt ngắn gọn các xu hướng/vấn đề nổi cộm nhất tuần qua (dưới 100 chữ).\n" +
+                "2. 'weeklyActionPlan': Đề xuất 3 hành động cụ thể cho tuần tới để cải thiện dịch vụ.";
+
+        try {
+            String aiRawJson = callGeminiApi(prompt);
+            JsonNode resultNode = objectMapper.readTree(aiRawJson);
+
+            WeeklyInsightReport report = weeklyInsightReportRepository.findByWeekNumberAndReportYear(weekNumber, reportYear)
+                    .orElse(new WeeklyInsightReport());
+
+            report.setWeekNumber(weekNumber);
+            report.setReportYear(reportYear);
+            report.setStartDate(startDate);
+            report.setEndDate(endDate);
+            report.setTotalFeedbacks(total);
+            report.setAverageRating(avgRating);
+            report.setAverageSentimentScore(avgSentiment);
+            report.setPositiveCount((int) positive);
+            report.setNegativeCount((int) negative);
+
+            report.setTopIssuesSummary(resultNode.path("topIssuesSummary").asText());
+            report.setWeeklyActionPlan(resultNode.path("weeklyActionPlan").asText());
+
+            weeklyInsightReportRepository.save(report);
+            log.info("Đã lưu báo cáo tuần {} thành công!", weekNumber);
+
+        } catch (Exception e) {
+            log.error("Lỗi tạo báo cáo tuần: {}", e.getMessage());
+        }
+    }
+
+    private String callGeminiApi(String prompt) throws Exception
+    {
+        Map<String, Object> requestBody = Map.of(
+                "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
+                "generationConfig", Map.of("response_mime_type", "application/json")
+        );
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, new HttpHeaders());
+        ResponseEntity<String> response = restTemplate.postForEntity(apiUrl + apiKey, entity, String.class);
+
+        JsonNode rootNode = objectMapper.readTree(response.getBody());
+        return rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText()
+                .replace("```json", "").replace("```", "").trim();
     }
 }

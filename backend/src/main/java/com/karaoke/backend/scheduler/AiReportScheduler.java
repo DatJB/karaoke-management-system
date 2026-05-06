@@ -39,4 +39,16 @@ public class AiReportScheduler
 
         aiIntegrationService.generateDailyReport(yesterday, comments);
     }
+
+    @Scheduled(cron = "0 15 0 * * MON")
+    public void runWeeklyAiAnalysis()
+    {
+        LocalDate lastSunday = LocalDate.now().minusDays(1);
+        try {
+            aiIntegrationService.generateWeeklyReport(lastSunday);
+        } catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
 }

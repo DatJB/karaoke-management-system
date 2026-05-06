@@ -1,6 +1,8 @@
 package com.karaoke.backend.controller;
 
 import com.karaoke.backend.dto.response.AiDashboardResponse;
+import com.karaoke.backend.dto.response.WeeklyInsightDTO;
+import com.karaoke.backend.entity.WeeklyInsightReport;
 import com.karaoke.backend.service.AiDashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -37,5 +39,16 @@ public class AiDashboardController
 
         AiDashboardResponse response = dashboardService.getDashboardData(startDate, endDate, page, size, sortBy);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/weekly")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<WeeklyInsightDTO> getWeeklyReport(
+            @RequestParam Integer week,
+            @RequestParam Integer year)
+    {
+        return dashboardService.getWeeklyReport(week, year)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

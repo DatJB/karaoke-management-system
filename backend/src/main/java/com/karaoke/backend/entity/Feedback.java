@@ -25,7 +25,8 @@ public class Feedback {
     @JoinColumn(name = "invoice_id", unique = true, nullable = false)
     private Invoice invoice;
 
-    private Integer rating;
+    @Column(precision = 2, scale = 1)
+    private Double rating;
 
     @Lob
     private String comment;
