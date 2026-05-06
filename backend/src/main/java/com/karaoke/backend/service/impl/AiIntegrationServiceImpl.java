@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,9 +49,10 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
     {
         try {
             String prompt = "Phân tích bình luận quán Karaoke sau. " +
-                    "Trả về JSON chính xác với 2 trường: " +
-                    "'sentiment' (chỉ chọn POSITIVE, NEGATIVE, NEUTRAL) và " +
-                    "'tags' (mảng chuỗi, chỉ chọn từ: FOOD, DEVICE, SERVICE, GENERAL). " +
+                    "Trả về JSON chính xác với 3 trường: " +
+                    "'sentiment' (chỉ chọn POSITIVE, NEGATIVE, NEUTRAL), " +
+                    "'score' (số thập phân 0.0 đến 5.0, 1.0 là rất tiêu cực, 5.0 là rất tích cực), " +
+                    "'tags' (mảng chuỗi, chứa 1 đến 4 cụm từ cực kỳ ngắn gọn (2-5 chữ) tóm tắt chính xác các vấn đề/lời khen trong câu. VD: 'món ăn ngon', 'phục vụ lâu', 'kẹt máy in', 'phòng hôi'). " +
                     "Bình luận: \"" + comment + "\"";
 
             Map<String, Object> requestBody = Map.of(
@@ -74,6 +76,8 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
                     String.class
             );
 
+            System.out.println("ok");
+
             JsonNode rootNode = objectMapper.readTree(response.getBody());
             String aiRawJson = rootNode.path("candidates").get(0)
                     .path("content").path("parts").get(0)
@@ -81,21 +85,25 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
 
             JsonNode resultNode = objectMapper.readTree(aiRawJson);
             String sentimentStr = resultNode.path("sentiment").asText("NEUTRAL");
+            double sentimentScore = resultNode.path("score").asDouble(3.0);
 
-            List<FeedbackTag> extractedTags = new ArrayList<>();
+            List<String> extractedTags = new ArrayList<>();
             JsonNode tagsNode = resultNode.path("tags");
             if (tagsNode.isArray())
             {
-                for (JsonNode node : tagsNode) {
-                    try {
-                        extractedTags.add(FeedbackTag.valueOf(node.asText().toUpperCase()));
-                    } catch (IllegalArgumentException ignored) {
+                for (JsonNode node : tagsNode)
+                {
+                    String rawTag = node.asText().trim();
+                    if (!rawTag.isEmpty()) {
+                        String formattedTag = rawTag.substring(0, 1).toUpperCase() + rawTag.substring(1).toLowerCase();
+                        extractedTags.add(formattedTag);
                     }
                 }
             }
 
             feedbackRepository.findById(feedbackId).ifPresent(feedback -> {
                 feedback.setSentimentLabel(Feedback.SentimentLabel.valueOf(sentimentStr));
+                feedback.setSentimentScore(BigDecimal.valueOf(sentimentScore));
                 feedback.setExtractedTags(extractedTags);
                 feedbackRepository.save(feedback);
             });
@@ -108,16 +116,20 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
 
     @Override
     @Transactional
-    public void  generateDailyReport(LocalDate date, List<String> comments) {
+    public void generateDailyReport(LocalDate date, List<String> comments) {
         try {
             String allComments = String.join(" | ", comments);
 
-            String prompt = "Dựa trên các bình luận sau của khách quán Karaoke ngày " + date + ": \"" + allComments + "\". " +
-                    "Hãy tổng hợp thành các báo cáo insight. Trả về một đối tượng JSON có chứa một mảng tên là 'reports', mỗi phần tử trong mảng có: " +
-                    "'category' (chỉ chọn 1 trong: FOOD, DEVICE, SERVICE, GENERAL), " +
-                    "'title' (tiêu đề ngắn gọn), " +
-                    "'content' (phân tích chi tiết), " +
-                    "'severity' (chỉ chọn 1 trong: LOW, MEDIUM, HIGH, CRITICAL).";
+            String prompt = "Bạn là Giám đốc vận hành chuỗi Karaoke chuyên nghiệp. " +
+                    "Dựa trên danh sách bình luận thực tế của khách hàng trong ngày " + date + ": \n" +
+                    "[" + allComments + "]\n\n" +
+                    "Hãy phân tích và tổng hợp thành các insight báo cáo. Trả về duy nhất một đối tượng JSON có chứa mảng 'reports'. " +
+                    "Mỗi phần tử trong mảng phải có đủ 5 trường sau:\n" +
+                    "1. 'category' (chỉ chọn: FOOD, DEVICE, SERVICE, GENERAL)\n" +
+                    "2. 'title' (Tiêu đề ngắn gọn tóm tắt nhóm vấn đề hoặc điểm sáng)\n" +
+                    "3. 'content' (Phân tích chi tiết: có bao nhiêu khách gặp vấn đề này, tình trạng cụ thể là gì)\n" +
+                    "4. 'solution' (Đề xuất giải pháp hành động cụ thể cho Quản lý quán để khắc phục lỗi hoặc phát huy điểm tốt)\n" +
+                    "5. 'severity' (Mức độ nghiêm trọng cần xử lý: CRITICAL, HIGH, MEDIUM, LOW. Lưu ý: Các lời khen ngợi tích cực mặc định chọn LOW).";
 
             Map<String, Object> requestBody = Map.of(
                     "contents", List.of(
@@ -157,6 +169,7 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
                     report.setReportDate(date);
                     report.setInsightTitle(node.path("title").asText());
                     report.setInsightContent(node.path("content").asText());
+                    report.setSolution(node.path("solution").asText());
 
                     try
                     {

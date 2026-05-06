@@ -31,6 +31,9 @@ public class AiInsightReport {
     @Column(name = "insight_content", columnDefinition = "TEXT")
     private String insightContent;
 
+    @Column(columnDefinition = "TEXT")
+    private String solution;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "severity_level", columnDefinition = "ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')")
     private SeverityLevel severityLevel;

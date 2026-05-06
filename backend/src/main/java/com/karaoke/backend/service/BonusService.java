@@ -1,7 +1,7 @@
 package com.karaoke.backend.service;
 
-import com.karaoke.backend.dto.BonusRequestDto;
-import com.karaoke.backend.dto.BonusResponseDto;
+import com.karaoke.backend.dto.request.BonusRequestDto;
+import com.karaoke.backend.dto.response.BonusResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

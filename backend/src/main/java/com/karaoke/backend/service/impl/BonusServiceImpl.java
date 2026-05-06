@@ -1,7 +1,7 @@
 package com.karaoke.backend.service.impl;
 
-import com.karaoke.backend.dto.BonusRequestDto;
-import com.karaoke.backend.dto.BonusResponseDto;
+import com.karaoke.backend.dto.request.BonusRequestDto;
+import com.karaoke.backend.dto.response.BonusResponseDto;
 import com.karaoke.backend.entity.Bonus;
 import com.karaoke.backend.entity.Employee;
 import com.karaoke.backend.entity.PayrollPeriod;

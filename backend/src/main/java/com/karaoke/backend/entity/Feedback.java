@@ -37,9 +37,14 @@ public class Feedback {
     @Column(name = "sentiment_score", precision = 5, scale = 4)
     private BigDecimal sentimentScore;
 
-    @Column(name = "extracted_tags", columnDefinition = "JSON")
-    @Convert(converter = FeedbackTagListConverter.class)
-    private List<FeedbackTag> extractedTags;
+//    @Column(name = "extracted_tags", columnDefinition = "JSON")
+//    @Convert(converter = FeedbackTagListConverter.class)
+//    private List<FeedbackTag> extractedTags;
+
+    @ElementCollection
+    @CollectionTable(name = "feedback_tags", joinColumns = @JoinColumn(name = "feedback_id"))
+    @Column(name = "extracted_tags")
+    private List<String> extractedTags;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

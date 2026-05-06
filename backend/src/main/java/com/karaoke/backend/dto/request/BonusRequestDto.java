@@ -1,4 +1,4 @@
-package com.karaoke.backend.dto;
+package com.karaoke.backend.dto.request;
 
 import java.math.BigDecimal;
 

@@ -1,9 +1,10 @@
 package com.karaoke.backend.controller;
 
-import com.karaoke.backend.dto.EmployeePayrollDetailDto;
-import com.karaoke.backend.dto.PayrollCalculationResultDto;
-import com.karaoke.backend.dto.PayrollDto;
-import com.karaoke.backend.dto.PayrollPeriodRequestDto;
+import com.karaoke.backend.dto.response.EmployeePayrollDetailDto;
+import com.karaoke.backend.dto.response.PayrollCalculationResultDto;
+import com.karaoke.backend.dto.response.PayrollDto;
+import com.karaoke.backend.dto.request.PayrollPeriodRequestDto;
+import com.karaoke.backend.dto.request.PayrollUpdateRequestDto;
 import com.karaoke.backend.dto.response.ApiResponse;
 import com.karaoke.backend.entity.PayrollPeriod;
 import com.karaoke.backend.repository.AccountRepository;
@@ -19,8 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -98,7 +97,7 @@ public class PayrollController {
     public ResponseEntity<ApiResponse<PayrollDto>> updatePayroll(
             @PathVariable Integer periodId, 
             @PathVariable Integer payrollId, 
-            @RequestBody com.karaoke.backend.dto.PayrollUpdateRequestDto request) {
+            @RequestBody PayrollUpdateRequestDto request) {
         PayrollDto updated = payrollPeriodService.updatePayroll(periodId, payrollId, request);
         return ResponseEntity.ok(new ApiResponse<>("Payroll updated", updated));
     }

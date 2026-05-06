@@ -1,10 +1,11 @@
 package com.karaoke.backend.service.impl;
 
-import com.karaoke.backend.dto.EmployeePayrollDetailDto;
-import com.karaoke.backend.dto.PayrollDto;
-import com.karaoke.backend.dto.PayrollPeriodRequestDto;
-import com.karaoke.backend.dto.BonusResponseDto;
-import com.karaoke.backend.dto.PenaltyResponseDto;
+import com.karaoke.backend.dto.response.EmployeePayrollDetailDto;
+import com.karaoke.backend.dto.response.PayrollDto;
+import com.karaoke.backend.dto.request.PayrollPeriodRequestDto;
+import com.karaoke.backend.dto.response.BonusResponseDto;
+import com.karaoke.backend.dto.response.PenaltyResponseDto;
+import com.karaoke.backend.dto.request.PayrollUpdateRequestDto;
 import com.karaoke.backend.entity.*;
 import com.karaoke.backend.exception.PayrollPeriodAlreadyApprovedException;
 import com.karaoke.backend.repository.*;
@@ -214,7 +215,7 @@ public class PayrollPeriodServiceImpl implements PayrollPeriodService {
 
     @Override
     @Transactional
-    public PayrollDto updatePayroll(Integer periodId, Integer payrollId, com.karaoke.backend.dto.PayrollUpdateRequestDto requestDto) {
+    public PayrollDto updatePayroll(Integer periodId, Integer payrollId, PayrollUpdateRequestDto requestDto) {
         Payroll payroll = payrollRepository.findById(payrollId)
                 .orElseThrow(() -> new IllegalArgumentException("Payroll not found"));
 

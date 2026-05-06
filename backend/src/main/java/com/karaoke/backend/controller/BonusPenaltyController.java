@@ -1,10 +1,11 @@
 package com.karaoke.backend.controller;
 
-import com.karaoke.backend.dto.BonusRequestDto;
-import com.karaoke.backend.dto.BonusResponseDto;
-import com.karaoke.backend.dto.PenaltyRequestDto;
-import com.karaoke.backend.dto.PenaltyResponseDto;
+import com.karaoke.backend.dto.request.BonusRequestDto;
+import com.karaoke.backend.dto.response.BonusResponseDto;
+import com.karaoke.backend.dto.request.PenaltyRequestDto;
+import com.karaoke.backend.dto.response.PenaltyResponseDto;
 import com.karaoke.backend.dto.response.ApiResponse;
+import com.karaoke.backend.dto.response.BonusPenaltyItemDto;
 import com.karaoke.backend.repository.AccountRepository;
 import com.karaoke.backend.service.BonusService;
 import com.karaoke.backend.service.PenaltyService;
@@ -93,13 +94,13 @@ public class BonusPenaltyController {
 
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     @GetMapping("/bonuses-penalties")
-    public ResponseEntity<ApiResponse<Page<com.karaoke.backend.dto.BonusPenaltyItemDto>>> getAllCombined(Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<BonusPenaltyItemDto>>> getAllCombined(Pageable pageable) {
         return ResponseEntity.ok(new ApiResponse<>("Success", combinedService.getAllCombined(pageable)));
     }
 
     @PreAuthorize("hasAnyRole('STAFF', 'RECEPTIONIST')")
     @GetMapping("/bonuses-penalties/me")
-    public ResponseEntity<ApiResponse<Page<com.karaoke.backend.dto.BonusPenaltyItemDto>>> getMyCombined(Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<BonusPenaltyItemDto>>> getMyCombined(Pageable pageable) {
         Integer employeeId = getCurrentEmployeeId();
         return ResponseEntity.ok(new ApiResponse<>("Success", combinedService.getMyCombined(employeeId, pageable)));
     }

@@ -1,6 +1,6 @@
 package com.karaoke.backend.service.impl;
 
-import com.karaoke.backend.dto.BonusPenaltyItemDto;
+import com.karaoke.backend.dto.response.BonusPenaltyItemDto;
 import com.karaoke.backend.entity.Bonus;
 import com.karaoke.backend.entity.Penalty;
 import com.karaoke.backend.repository.BonusRepository;

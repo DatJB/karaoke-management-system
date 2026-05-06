@@ -19,8 +19,8 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class KaraokePricingEngine {
-
+public class KaraokePricingEngine
+{
     private final RoomPriceRepository normalRepo;
     private final RoomPriceSpecialRepository specialRepo;
 

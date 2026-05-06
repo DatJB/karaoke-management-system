@@ -101,30 +101,30 @@ public class AiDashboardServiceImpl implements AiDashboardService
             customerName = feedback.getInvoice().getBooking().getCustomer().getName();
         }
 
-        List<String> translatedTags = feedback.getExtractedTags() == null
+        List<String> displayTags = feedback.getExtractedTags() == null
                 ? List.of()
-                : feedback.getExtractedTags().stream().map(this::translateTag).collect(Collectors.toList());
+                : feedback.getExtractedTags();
 
         return LiveFeedback.builder()
                 .id(feedback.getId())
                 .customerName(customerName)
                 .sentiment(feedback.getSentimentLabel() != null ? feedback.getSentimentLabel().name() : "NEUTRAL")
                 .comment(feedback.getComment())
-                .tags(translatedTags)
+                .tags(displayTags)
                 .build();
     }
 
-    private String translateTag(FeedbackTag tag)
-    {
-        if (tag == null || tag.getAspect() == null) return "Khác";
-
-        return switch (tag.getAspect().toUpperCase()) {
-            case "FOOD" -> "Đồ ăn & Thức uống";
-            case "DEVICE" -> "Âm thanh & Thiết bị";
-            case "SERVICE" -> "Phục vụ";
-            case "GENERAL" -> "Trải nghiệm chung";
-            default -> "Khác";
-        };
-    }
+//    private String translateTag(FeedbackTag tag)
+//    {
+//        if (tag == null || tag.getAspect() == null) return "Khác";
+//
+//        return switch (tag.getAspect().toUpperCase()) {
+//            case "FOOD" -> "Đồ ăn & Thức uống";
+//            case "DEVICE" -> "Âm thanh & Thiết bị";
+//            case "SERVICE" -> "Phục vụ";
+//            case "GENERAL" -> "Trải nghiệm chung";
+//            default -> "Khác";
+//        };
+//    }
 }
 

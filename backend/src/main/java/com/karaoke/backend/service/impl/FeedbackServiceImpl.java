@@ -11,6 +11,8 @@ import com.karaoke.backend.service.FeedbackService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +48,13 @@ public class FeedbackServiceImpl implements FeedbackService
 
         if (request.getComment() != null && !request.getComment().trim().isEmpty())
         {
-            aiIntegrationService.analyzeFeedbackAsync(savedFeedback.getId(), request.getComment());
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit()
+                {
+                    aiIntegrationService.analyzeFeedbackAsync(savedFeedback.getId(), request.getComment());
+                }
+            });
         }
     }
 }

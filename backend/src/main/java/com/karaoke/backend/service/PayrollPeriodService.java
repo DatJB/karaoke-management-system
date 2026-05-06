@@ -1,8 +1,9 @@
 package com.karaoke.backend.service;
 
-import com.karaoke.backend.dto.EmployeePayrollDetailDto;
-import com.karaoke.backend.dto.PayrollDto;
-import com.karaoke.backend.dto.PayrollPeriodRequestDto;
+import com.karaoke.backend.dto.response.EmployeePayrollDetailDto;
+import com.karaoke.backend.dto.response.PayrollDto;
+import com.karaoke.backend.dto.request.PayrollPeriodRequestDto;
+import com.karaoke.backend.dto.request.PayrollUpdateRequestDto;
 import com.karaoke.backend.entity.PayrollPeriod;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,5 +19,5 @@ public interface PayrollPeriodService {
     Page<PayrollDto> getMyPayrolls(Integer employeeId, Pageable pageable);
     EmployeePayrollDetailDto getEmployeePayrollDetails(Integer periodId, Integer employeeId);
     Page<PayrollPeriod> getAllPeriods(Pageable pageable);
-    PayrollDto updatePayroll(Integer periodId, Integer payrollId, com.karaoke.backend.dto.PayrollUpdateRequestDto requestDto);
+    PayrollDto updatePayroll(Integer periodId, Integer payrollId, PayrollUpdateRequestDto requestDto);
 }

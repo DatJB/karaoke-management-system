@@ -1,6 +1,6 @@
 package com.karaoke.backend.service.impl;
 
-import com.karaoke.backend.dto.PayrollCalculationResultDto;
+import com.karaoke.backend.dto.response.PayrollCalculationResultDto;
 import com.karaoke.backend.entity.*;
 import com.karaoke.backend.exception.PayrollPeriodAlreadyApprovedException;
 import com.karaoke.backend.repository.*;

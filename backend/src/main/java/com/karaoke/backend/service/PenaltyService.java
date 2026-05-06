@@ -1,7 +1,7 @@
 package com.karaoke.backend.service;
 
-import com.karaoke.backend.dto.PenaltyRequestDto;
-import com.karaoke.backend.dto.PenaltyResponseDto;
+import com.karaoke.backend.dto.request.PenaltyRequestDto;
+import com.karaoke.backend.dto.response.PenaltyResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
