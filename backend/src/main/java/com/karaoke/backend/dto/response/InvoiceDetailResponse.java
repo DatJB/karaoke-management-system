@@ -27,6 +27,7 @@ public class InvoiceDetailResponse {
 
     private BigDecimal totalRoomPrice;
     private BigDecimal totalServicePrice;
+    private BigDecimal discountPercent;
     private BigDecimal discount;
     private BigDecimal totalPrice;
 }

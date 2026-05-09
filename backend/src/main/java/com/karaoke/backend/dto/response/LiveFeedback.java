@@ -12,6 +12,8 @@ public class LiveFeedback
     private Integer id;
     private String customerName;
     private String sentiment;
+    private Double rating;
+    private java.math.BigDecimal sentimentScore;
     private String comment;
     private List<String> tags;
 }

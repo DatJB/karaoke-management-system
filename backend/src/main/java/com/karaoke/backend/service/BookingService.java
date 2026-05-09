@@ -32,4 +32,6 @@ public interface BookingService
     void checkOutSingleRoom(Integer bookingId, Integer roomId);
 
     void checkOutAllRooms(Integer bookingId);
+
+    void cancelBooking(Integer bookingId);
 }

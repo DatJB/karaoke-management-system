@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getInvoices, getInvoiceDetail, confirmPayment } from '../api/invoiceApi';
+import { getInvoices, getInvoiceDetail, confirmPayment, applyDiscount, applyDirectDiscount } from '../api/invoiceApi';
 import { checkoutAllRooms } from '../api/bookingApi';
-import { Receipt, Search, Plus, Calendar, Filter, User, Phone, Hash, Clock, CreditCard, CheckCircle2, AlertCircle, ChevronRight, Loader2, Printer, MessageSquare } from 'lucide-react';
+import { Receipt, Search, Plus, Calendar, Filter, User, Phone, Hash, Clock, CreditCard, CheckCircle2, AlertCircle, ChevronRight, Loader2, Printer, MessageSquare, Check, X } from 'lucide-react';
 import ConfirmModal from '../components/common/ConfirmModal';
 import FeedbackModal from '../components/invoice/FeedbackModal';
 import { submitFeedback } from '../api/feedbackApi';
@@ -23,6 +23,9 @@ export default function Invoices() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [justPaidInvoiceId, setJustPaidInvoiceId] = useState(null);
+  const [discountInput, setDiscountInput] = useState('');
+  const [directDiscountInput, setDirectDiscountInput] = useState('');
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
 
   const fetchInvoices = async () => {
     try {
@@ -89,6 +92,61 @@ export default function Invoices() {
     } finally {
       setLoadingDetail(false);
       setShowConfirm(false);
+    }
+  };
+
+  const handleApplyDiscount = async () => {
+    if (!selectedInvoiceDetail || discountInput === '') return;
+    try {
+      setApplyingDiscount(true);
+      await applyDiscount(selectedInvoiceDetail.invoiceId, Number(discountInput));
+      // Refresh detail
+      const updated = await getInvoiceDetail(selectedInvoiceDetail.invoiceId);
+      setSelectedInvoiceDetail(updated);
+      toast.success(`Đã áp dụng giảm giá ${discountInput}%`);
+      setDiscountInput('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi khi áp dụng giảm giá');
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
+
+  const handleApplyDirectDiscount = async () => {
+    if (!selectedInvoiceDetail || directDiscountInput === '') return;
+    try {
+      setApplyingDiscount(true);
+      await applyDirectDiscount(selectedInvoiceDetail.invoiceId, Number(directDiscountInput));
+      // Refresh detail
+      const updated = await getInvoiceDetail(selectedInvoiceDetail.invoiceId);
+      setSelectedInvoiceDetail(updated);
+      toast.success(`Đã áp dụng giảm trực tiếp ${formatCurrency(directDiscountInput)}đ`);
+      setDirectDiscountInput('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi khi áp dụng giảm giá');
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
+
+  const handleCancelDiscount = async () => {
+    if (!selectedInvoiceDetail) return;
+    try {
+      setApplyingDiscount(true);
+      // Reset both percentage and direct discount
+      await Promise.all([
+        applyDiscount(selectedInvoiceDetail.invoiceId, 0),
+        applyDirectDiscount(selectedInvoiceDetail.invoiceId, 0)
+      ]);
+      
+      // Refresh detail
+      const updated = await getInvoiceDetail(selectedInvoiceDetail.invoiceId);
+      setSelectedInvoiceDetail(updated);
+      toast.success('Đã hủy tất cả giảm giá');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi khi hủy giảm giá');
+    } finally {
+      setApplyingDiscount(false);
     }
   };
 
@@ -412,7 +470,7 @@ export default function Invoices() {
               </section>
 
               <section className="mt-8 flex flex-col md:flex-row justify-end border-t-2 border-slate-900 dark:border-slate-100 pt-6 pb-8 gap-6">
-                <div className="flex flex-col gap-2 min-w-[300px]">
+                <div className="flex flex-col gap-2 min-w-[320px]">
                   <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
                     <span>Tiền phòng:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(selectedInvoiceDetail.totalRoomPrice)}đ</span>
@@ -421,21 +479,107 @@ export default function Invoices() {
                     <span>Tiền dịch vụ:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(selectedInvoiceDetail.totalServicePrice)}đ</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
-                    <span>Giảm giá:</span>
-                    <span className="font-bold text-red-500">-{formatCurrency(selectedInvoiceDetail.discount)}đ</span>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-end">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-0.5">Tổng cộng thanh toán</span>
-                      <div className="flex items-center gap-1.5">
-                        {selectedInvoiceDetail.status === 'PAID' ? <CheckCircle2 className="text-green-500" size={20} /> : <AlertCircle className="text-orange-500 animate-pulse" size={20} />}
-                        <span className="text-2xl font-display font-black text-slate-900 dark:text-white">
-                          {formatCurrency(selectedInvoiceDetail.totalPrice)}đ
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  
+                  {/* Calculation context */}
+                  {(() => {
+                    const subtotal = (selectedInvoiceDetail.totalRoomPrice || 0) + (selectedInvoiceDetail.totalServicePrice || 0);
+                    const percentDiscountAmount = Math.round((subtotal * (selectedInvoiceDetail.discountPercent || 0)) / 100);
+                    const directDiscountAmount = selectedInvoiceDetail.discount || 0;
+                    const totalDiscount = percentDiscountAmount + directDiscountAmount;
+                    const finalPrice = Math.max(0, subtotal - totalDiscount);
+
+                    return (
+                      <>
+                        {selectedInvoiceDetail.discountPercent > 0 && (
+                          <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
+                            <span>Giảm giá ({selectedInvoiceDetail.discountPercent}%):</span>
+                            <span className="font-bold text-red-500">-{formatCurrency(percentDiscountAmount)}đ</span>
+                          </div>
+                        )}
+                        {selectedInvoiceDetail.discount > 0 && (
+                          <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
+                            <span>Giảm trực tiếp:</span>
+                            <span className="font-bold text-red-500">-{formatCurrency(directDiscountAmount)}đ</span>
+                          </div>
+                        )}
+                        
+                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                          <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
+                            <span>Giảm giá (%):</span>
+                            <div className="flex items-center gap-3">
+                              {selectedInvoiceDetail.status === 'UNPAID' && (
+                                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    className="w-10 bg-transparent text-center font-bold text-[10px] outline-none text-slate-700 dark:text-slate-300"
+                                    placeholder="%"
+                                    value={discountInput}
+                                    onChange={(e) => setDiscountInput(e.target.value)}
+                                  />
+                                  <button
+                                    onClick={handleApplyDiscount}
+                                    disabled={applyingDiscount || discountInput === ''}
+                                    className="bg-primary text-white p-1 rounded-lg hover:bg-primary-dark transition-all disabled:opacity-50"
+                                    title="Áp dụng %"
+                                  >
+                                    <Check size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
+                            <span>Giảm giá (Tiền):</span>
+                            <div className="flex items-center gap-3">
+                              {selectedInvoiceDetail.status === 'UNPAID' && (
+                                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="w-20 bg-transparent text-center font-bold text-[10px] outline-none text-slate-700 dark:text-slate-300"
+                                    placeholder="Số tiền..."
+                                    value={directDiscountInput}
+                                    onChange={(e) => setDirectDiscountInput(e.target.value)}
+                                  />
+                                  <button
+                                    onClick={handleApplyDirectDiscount}
+                                    disabled={applyingDiscount || directDiscountInput === ''}
+                                    className="bg-primary text-white p-1 rounded-lg hover:bg-primary-dark transition-all disabled:opacity-50"
+                                    title="Giảm tiền mặt"
+                                  >
+                                    <Check size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 mt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+                            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Tổng thanh toán</span>
+                            <div className="flex items-center gap-2">
+                              {selectedInvoiceDetail.status === 'PAID' ? <CheckCircle2 className="text-green-500" size={20} /> : <AlertCircle className="text-orange-500 animate-pulse" size={20} />}
+                              <span className="text-2xl font-display font-black text-slate-900 dark:text-white">
+                                {formatCurrency(finalPrice)}đ
+                              </span>
+                              {selectedInvoiceDetail.status === 'UNPAID' && (selectedInvoiceDetail.discount > 0 || selectedInvoiceDetail.discountPercent > 0) && (
+                                <button
+                                  onClick={handleCancelDiscount}
+                                  disabled={applyingDiscount}
+                                  className="ml-2 bg-red-500 text-white p-1 rounded-lg hover:bg-red-600 transition-all disabled:opacity-50"
+                                  title="Hủy tất cả giảm giá"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </section>
             </div>

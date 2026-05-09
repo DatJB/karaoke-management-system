@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { X, ArrowLeft, Search, CheckCircle2, Pencil, Trash2, Loader2, ArrowRight, Minus, Plus } from 'lucide-react'
 import { mockCustomers, mockEmployees, mockProducts } from '../../mock/data'
 import { ROOM_STATUS_COLOR, ROOM_STATUS_LABEL } from './RoomCard'
 import ConfirmModal from '../common/ConfirmModal'
 import { getRoomDetail, assignEmployeeToRoom, removeEmployeeFromRoom, getRoomEmployee } from '../../api/roomApi'
-import { createBooking, checkoutSingleRoom } from '../../api/bookingApi'
+import { createBooking, checkoutSingleRoom, checkInSingleRoom } from '../../api/bookingApi'
 import { getAllCustomers } from '../../api/customerApi'
 import { getRoomOrders, addOrderToRoom, updateOrderItem, deleteOrderItem } from '../../api/order'
 import { getProducts } from '../../api/product'
 import { getAllEmployees } from '../../api/employeeApi'
+import { DateTimeSelect } from '../common/DateTimeSelect'
 import toast from 'react-hot-toast'
 
 const getRoomPrice = (category) => (category === 'VIP' ? 200000 : 100000)
@@ -27,6 +29,7 @@ export default function RoomDetailModal({
   onDelete,
   onSuccess,
 }) {
+  const navigate = useNavigate()
   const [detailedRoom, setDetailedRoom] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -53,6 +56,12 @@ export default function RoomDetailModal({
     }
   }, [bookingStep, bookingAction, customerKeyword])
 
+  const getCurrentLocalTime = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+  const getCheckoutLocalTime = () => new Date(Date.now() + 3 * 3600000 - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+
+  const [bookingTime, setBookingTime] = useState(getCurrentLocalTime())
+  const [checkoutTime, setCheckoutTime] = useState(getCheckoutLocalTime())
+
   const handleCreateBooking = async () => {
     if (!selectedCustomerId) return
     try {
@@ -60,8 +69,8 @@ export default function RoomDetailModal({
       const data = {
         customerId: selectedCustomerId,
         roomIds: [currentRoom.id],
-        reservationTime: new Date().toISOString(),
-        expectedCheckoutTime: new Date(Date.now() + 3 * 3600000).toISOString(), // Dự kiến 3 giờ
+        reservationTime: bookingTime.length === 16 ? `${bookingTime}:00` : bookingTime,
+        expectedCheckoutTime: checkoutTime.length === 16 ? `${checkoutTime}:00` : checkoutTime, // Dự kiến 3 giờ
         checkInImmediately: bookingAction === 'CHECKIN',
         note: bookingNote
       }
@@ -117,11 +126,28 @@ export default function RoomDetailModal({
     try {
       setLoading(true);
       await checkoutSingleRoom(currentRoom.bookingId, currentRoom.id);
-      toast.success('Đã thanh toán và trả phòng thành công!');
+      toast.success('Trả phòng thành công! Đang chuyển đến trang hóa đơn...');
+      onSuccess?.();
+      onClose();
+      navigate('/invoices');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi trả phòng');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleCheckIn = async () => {
+    if (!currentRoom?.bookingId || !currentRoom?.id) return;
+    try {
+      setLoading(true);
+      await checkInSingleRoom(currentRoom.bookingId, currentRoom.id);
+      toast.success('Khách đã nhận phòng thành công!');
       onSuccess?.();
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi trả phòng');
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi nhận phòng');
       console.error(error);
     } finally {
       setLoading(false);
@@ -237,17 +263,17 @@ export default function RoomDetailModal({
               </h3>
             </div>
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 shrink-0 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    {bookingAction === 'CHECKIN' || bookingAction === 'COMBO' ? 'Thời gian nhận phòng' : 'Thời gian nhận (dự kiến)'}
-                  </label>
-                  <input type="datetime-local" className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Thời gian trả phòng (nếu có)</label>
-                  <input type="datetime-local" className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <DateTimeSelect 
+                  label={bookingAction === 'RESERVE' ? "Thời gian đặt trước" : "Thời gian nhận phòng"} 
+                  value={bookingTime} 
+                  onChange={setBookingTime} 
+                />
+                <DateTimeSelect 
+                  label="Trả phòng dự kiến" 
+                  value={checkoutTime} 
+                  onChange={setCheckoutTime} 
+                />
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -537,7 +563,16 @@ export default function RoomDetailModal({
                     </div>
                     <div className="flex items-center gap-3">
                       <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, qty - 1) }))} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
-                      <span className="font-bold text-slate-900 dark:text-white w-4 text-center">{qty}</span>
+                      <input 
+                        type="number"
+                        min="0"
+                        value={qty}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 0;
+                          setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, val) }));
+                        }}
+                        className="w-12 h-8 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
+                      />
                       <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: qty + 1 }))} disabled={product.stock <= 0} className="w-8 h-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed">+</button>
                     </div>
                   </div>
@@ -638,6 +673,15 @@ export default function RoomDetailModal({
                         </span>
                       </div>
                     )}
+
+                    {(currentRoom.status === 'RESERVED' || currentRoom.status === 'OCCUPIED') && currentRoom.checkoutTime && (
+                      <div className="flex justify-between pt-1 border-t border-slate-100 dark:border-slate-800 mt-1">
+                        <span className="text-slate-500">Thời gian trả dự kiến:</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-200">
+                          {new Date(currentRoom.checkoutTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(currentRoom.checkoutTime).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -667,12 +711,17 @@ export default function RoomDetailModal({
                     {user.role !== 'STAFF' && (
                       <button onClick={() => { setBookingAction('ASSIGN_STAFF'); setBookingStep(2) }} className="w-full px-6 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-700">Điều chỉnh nhân viên</button>
                     )}
-                    <button onClick={() => setShowCheckoutConfirm(true)} className="w-full px-6 py-2.5 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors shadow-lg shadow-primary/30">Thanh toán / Trả phòng</button>
+                    <button onClick={() => setShowCheckoutConfirm(true)} className="w-full px-6 py-2.5 font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors shadow-lg shadow-primary/30">Trả phòng</button>
                   </div>
                 )
               )}
               {currentRoom.status === 'RESERVED' && user.role !== 'STAFF' && (
-                <button className="px-6 py-2 flex-1 font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors shadow-lg shadow-orange-500/30">Khách nhận phòng</button>
+                <button 
+                  onClick={handleCheckIn}
+                  className="px-6 py-2 flex-1 font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors shadow-lg shadow-orange-500/30"
+                >
+                  Khách nhận phòng
+                </button>
               )}
             </div>
           </>
@@ -689,9 +738,9 @@ export default function RoomDetailModal({
         isOpen={showCheckoutConfirm}
         onClose={() => setShowCheckoutConfirm(false)}
         onConfirm={handleCheckout}
-        title="Xác nhận thanh toán"
-        message={`Bạn có chắc chắn muốn thanh toán và trả phòng ${currentRoom?.name || ''} không? Thao tác này không thể hoàn tác.`}
-        confirmText="Thanh toán ngay"
+        title="Xác nhận trả phòng"
+        message={`Bạn có chắc chắn muốn trả phòng ${currentRoom?.name || ''} không? Sau khi trả phòng, hóa đơn sẽ được tạo và bạn có thể thực hiện thanh toán tại trang Hóa đơn.`}
+        confirmText="Trả phòng ngay"
         type="primary"
       />
     </div>,

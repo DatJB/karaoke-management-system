@@ -39,27 +39,52 @@ export default function FeedbackModal({ isOpen, onClose, onSubmit, invoiceId }) 
           <div>
             <h4 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Trải nghiệm của khách hàng như thế nào?</h4>
             <p className="text-sm text-slate-500 mb-4">Xin hãy chọn mức đánh giá</p>
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-1">
+              <svg width="0" height="0" className="absolute">
+                <defs>
+                  <linearGradient id="half-star-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="50%" stopColor="#facc15" />
+                    <stop offset="50%" stopColor="transparent" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+              </svg>
               {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setRating(star)}
-                  className="focus:outline-none transition-transform hover:scale-110"
-                >
+                <div key={star} className="relative group cursor-pointer">
+                  {/* Left half for 0.5 */}
+                  <div 
+                    className="absolute left-0 top-0 w-1/2 h-full z-10" 
+                    onClick={() => setRating(star - 0.5)}
+                  />
+                  {/* Right half for 1.0 */}
+                  <div 
+                    className="absolute right-0 top-0 w-1/2 h-full z-10" 
+                    onClick={() => setRating(star)}
+                  />
                   <Star
                     size={40}
-                    className={`${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300 dark:text-slate-700'}`}
+                    className={`${
+                      star <= rating 
+                        ? 'fill-yellow-400 text-yellow-400' 
+                        : (star - 0.5 === rating)
+                          ? 'text-yellow-400' 
+                          : 'text-slate-300 dark:text-slate-700'
+                    }`}
+                    style={star - 0.5 === rating ? { fill: 'url(#half-star-gradient)' } : {}}
                   />
-                </button>
+                </div>
               ))}
             </div>
-            <div className="mt-2 text-sm font-bold text-primary">
-              {rating === 1 && 'Rất tệ'}
-              {rating === 2 && 'Tệ'}
-              {rating === 3 && 'Bình thường'}
-              {rating === 4 && 'Tốt'}
-              {rating === 5 && 'Tuyệt vời'}
+            <div className="mt-2 text-sm font-bold text-primary h-5">
+              {rating === 0.5 && 'Rất tệ (0.5)'}
+              {rating === 1 && 'Rất tệ (1.0)'}
+              {rating === 1.5 && 'Tệ (1.5)'}
+              {rating === 2 && 'Tệ (2.0)'}
+              {rating === 2.5 && 'Trung bình (2.5)'}
+              {rating === 3 && 'Bình thường (3.0)'}
+              {rating === 3.5 && 'Khá (3.5)'}
+              {rating === 4 && 'Tốt (4.0)'}
+              {rating === 4.5 && 'Rất tốt (4.5)'}
+              {rating === 5 && 'Tuyệt vời (5.0)'}
             </div>
           </div>
 

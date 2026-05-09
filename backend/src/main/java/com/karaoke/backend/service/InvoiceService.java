@@ -1,10 +1,12 @@
 package com.karaoke.backend.service;
 
+import com.karaoke.backend.dto.request.DiscountPercentRequest;
 import com.karaoke.backend.dto.response.InvoiceDetailResponse;
 import com.karaoke.backend.dto.response.InvoiceSummaryResponse;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public interface InvoiceService
@@ -13,6 +15,9 @@ public interface InvoiceService
 
     InvoiceDetailResponse getInvoiceDetail(Integer id);
 
-    @Transactional
     void markAsPaid(Integer invoiceId);
+
+    void applyPercentageDiscount(Integer invoiceId, BigDecimal discountPercent);
+
+    void applyDirectDiscount(Integer invoiceId, BigDecimal discountAmount);
 }

@@ -2,6 +2,7 @@ package com.karaoke.backend.service.impl;
 
 import com.karaoke.backend.dto.response.*;
 import com.karaoke.backend.entity.*;
+import com.karaoke.backend.exception.BusinessException;
 import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.InvoiceRepository;
 import com.karaoke.backend.repository.RoomPriceRepository;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -96,6 +98,7 @@ public class InvoiceServiceImpl implements InvoiceService
         response.setCreatedAt(invoice.getCreatedAt());
         response.setTotalRoomPrice(invoice.getRoomPrice());
         response.setTotalServicePrice(invoice.getServicePrice());
+        response.setDiscountPercent(invoice.getDiscountPercent());
         response.setDiscount(invoice.getDiscount());
         response.setTotalPrice(invoice.getTotalPrice());
 
@@ -113,7 +116,8 @@ public class InvoiceServiceImpl implements InvoiceService
         BigDecimal totalRoomPriceCalc = BigDecimal.ZERO;
         BigDecimal totalServicePriceCalc = BigDecimal.ZERO;
 
-        if (isUnpaid) {
+        if (isUnpaid)
+        {
             for (com.karaoke.backend.entity.BookingRoom br : invoice.getBooking().getBookingRooms()) {
                 if (br.getStatus().name().equals("CANCELLED") || br.getStatus().name().equals("RESERVED")) continue;
 
@@ -151,6 +155,7 @@ public class InvoiceServiceImpl implements InvoiceService
                 dto.setCheckoutTime(ird.getBookingRoom().getCheckoutTime());
                 dto.setHoursUsed(ird.getHoursUsed());
                 dto.setTotalAmount(ird.getTotalPrice());
+                dto.setPricePerHour(ird.getPricePerHour());
 
                 List<TimeSliceDto> historicalSlices = ird.getSlices().stream().map(s -> {
                     TimeSliceDto sliceDto = new TimeSliceDto();
@@ -167,7 +172,7 @@ public class InvoiceServiceImpl implements InvoiceService
         }
         response.setRoomDetails(roomDetails);
 
-        // Xử lý Món ăn / Dịch vụ
+        // Product
         List<InvoiceItemDetail> itemDetails = invoice.getItems().stream().map(ii -> {
             InvoiceItemDetail dto = new InvoiceItemDetail();
             dto.setId(ii.getId());
@@ -184,7 +189,8 @@ public class InvoiceServiceImpl implements InvoiceService
         }).collect(Collectors.toList());
         response.setItemDetails(itemDetails);
 
-        if (isUnpaid) {
+        if (isUnpaid)
+        {
             response.setTotalRoomPrice(totalRoomPriceCalc);
             for (InvoiceItemDetail item : itemDetails) {
                 if (item.getTotalAmount() != null) {
@@ -195,7 +201,8 @@ public class InvoiceServiceImpl implements InvoiceService
             
             BigDecimal discount = response.getDiscount() != null ? response.getDiscount() : BigDecimal.ZERO;
             BigDecimal finalPrice = totalRoomPriceCalc.add(totalServicePriceCalc).subtract(discount);
-            if (finalPrice.compareTo(BigDecimal.ZERO) < 0) {
+            if (finalPrice.compareTo(BigDecimal.ZERO) < 0)
+            {
                 finalPrice = BigDecimal.ZERO;
             }
             response.setTotalPrice(finalPrice);
@@ -218,7 +225,8 @@ public class InvoiceServiceImpl implements InvoiceService
         LocalDateTime now = LocalDateTime.now();
 
         BigDecimal totalRoomPrice = BigDecimal.ZERO;
-        for (com.karaoke.backend.entity.BookingRoom br : invoice.getBooking().getBookingRooms()) {
+        for (com.karaoke.backend.entity.BookingRoom br : invoice.getBooking().getBookingRooms())
+        {
             if (br.getStatus().name().equals("CANCELLED") || br.getStatus().name().equals("RESERVED")) continue;
 
             LocalDateTime endCalc = br.getCheckoutTime() != null ? br.getCheckoutTime() : now;
@@ -227,7 +235,8 @@ public class InvoiceServiceImpl implements InvoiceService
             ird.setInvoice(invoice);
             ird.setBookingRoom(br);
             
-            if (br.getCheckinTime() != null) {
+            if (br.getCheckinTime() != null)
+            {
                 PricingCalculationResult calcResult = pricingEngine.calculateRoomPriceWithSlices(
                         br.getRoom().getId(), br.getCheckinTime(), endCalc
                 );
@@ -244,6 +253,10 @@ public class InvoiceServiceImpl implements InvoiceService
                     slice.setTotalAmount(sliceDto.getAmount());
                     ird.getSlices().add(slice);
                 }
+
+                if (!calcResult.getSlices().isEmpty()) {
+                    ird.setPricePerHour(calcResult.getSlices().get(0).getPricePerHour());
+                }
             } else {
                 ird.setHoursUsed(BigDecimal.ZERO);
                 ird.setTotalPrice(BigDecimal.ZERO);
@@ -253,7 +266,8 @@ public class InvoiceServiceImpl implements InvoiceService
         }
 
         BigDecimal totalServicePrice = BigDecimal.ZERO;
-        for (InvoiceItem item : invoice.getItems()) {
+        for (InvoiceItem item : invoice.getItems())
+        {
             totalServicePrice = totalServicePrice.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
         }
 
@@ -273,6 +287,58 @@ public class InvoiceServiceImpl implements InvoiceService
         invoiceRepository.save(invoice);
     }
 
+    @Override
+    @Transactional
+    public void applyPercentageDiscount(Integer invoiceId, BigDecimal discountPercent)
+    {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        if (discountPercent.compareTo(BigDecimal.ZERO) < 0 || discountPercent.compareTo(new BigDecimal("100")) > 0) {
+            throw new BusinessException("Phần trăm giảm giá phải nằm trong khoảng từ 0 đến 100!");
+        }
+
+        invoice.setDiscountPercent(discountPercent);
+
+        invoiceRepository.save(invoice);
+    }
+
+    @Override
+    @Transactional
+    public void applyDirectDiscount(Integer invoiceId, BigDecimal discountAmount)
+    {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        if (discountAmount.compareTo(BigDecimal.ZERO) < 0)
+        {
+            throw new IllegalArgumentException("Số tiền giảm không được nhỏ hơn 0!");
+        }
+
+        // Calculate current subtotal
+        BigDecimal currentSubtotal = BigDecimal.ZERO;
+        for (com.karaoke.backend.entity.BookingRoom br : invoice.getBooking().getBookingRooms())
+        {
+            if (br.getStatus().name().equals("CANCELLED") || br.getStatus().name().equals("RESERVED")) continue;
+            LocalDateTime endCalc = br.getCheckoutTime() != null ? br.getCheckoutTime() : LocalDateTime.now();
+            PricingCalculationResult calcResult = pricingEngine.calculateRoomPriceWithSlices(
+                    br.getRoom().getId(), br.getCheckinTime(), endCalc
+            );
+            currentSubtotal = currentSubtotal.add(calcResult.getTotalCost());
+        }
+        for (InvoiceItem item : invoice.getItems()) {
+            currentSubtotal = currentSubtotal.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
+        }
+
+        if (discountAmount.compareTo(currentSubtotal) > 0)
+        {
+            throw new IllegalArgumentException("Số tiền giảm (" + discountAmount + ") không được lớn hơn tổng hóa đơn (" + currentSubtotal + ")!");
+        }
+
+        invoice.setDiscount(discountAmount);
+        invoiceRepository.save(invoice);
+    }
+
     public BigDecimal calculateCurrentRoomPrice(Integer roomId)
     {
         LocalDateTime now = LocalDateTime.now();
@@ -282,7 +348,7 @@ public class InvoiceServiceImpl implements InvoiceService
         RoomPrice.DayOfWeek dayEnum = RoomPrice.DayOfWeek.valueOf(dayOfWeekStr);
 
         Double specialPrice = roomPriceSpecialRepository.findPrice(roomId, today, currentTime);
-        if (specialPrice != null) BigDecimal.valueOf(specialPrice);
+        if (specialPrice != null) return BigDecimal.valueOf(specialPrice);
 
         Double normalPrice = roomPriceRepository.findPrice(roomId, dayEnum, currentTime);
         if (normalPrice != null) return BigDecimal.valueOf(normalPrice);

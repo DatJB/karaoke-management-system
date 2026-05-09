@@ -533,4 +533,41 @@ public class BookingServiceImpl implements BookingService
         booking.setStatus(Booking.BookingStatus.CHECKED_OUT);
         bookingRepository.save(booking);
     }
+
+    @Transactional
+    @Override
+    public void cancelBooking(Integer bookingId)
+    {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin đặt phòng với ID: " + bookingId));
+
+        String currentStatus = booking.getStatus().name();
+
+        if ("CANCELLED".equals(currentStatus))
+        {
+            throw new IllegalStateException("Đơn đặt phòng này đã được hủy trước đó.");
+        }
+
+        if ("IN_PROGRESS".equals(currentStatus))
+        {
+            throw new IllegalStateException("Khách đang sử dụng phòng, không thể hủy.");
+        }
+
+        if ("COMPLETED".equals(currentStatus))
+        {
+            throw new IllegalStateException("Đơn này đã hoàn thành và thanh toán, không thể hủy.");
+        }
+
+        booking.setStatus(Booking.BookingStatus.CANCELLED);
+
+        if (booking.getBookingRooms() != null)
+        {
+            for (BookingRoom room : booking.getBookingRooms())
+            {
+                room.setStatus(BookingRoom.BookingRoomStatus.CANCELLED);
+            }
+        }
+
+        bookingRepository.save(booking);
+    }
 }

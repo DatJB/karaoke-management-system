@@ -39,3 +39,14 @@ export const getRoomEmployee = async (roomId) => {
     const response = await api.get(`/rooms/${roomId}/employees`);
     return response.data;
 };
+
+export const getAvailableRooms = async (start, end, params) => {
+    const response = await api.get('/rooms/available', {
+        params: {
+            start,
+            end,
+            ...params
+        }
+    });
+    return response.data;
+};

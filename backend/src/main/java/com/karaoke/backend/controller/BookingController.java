@@ -102,9 +102,17 @@ public class BookingController
 
     @PostMapping("/{id}/checkout")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
-    public ResponseEntity<Void> checkoutAllRooms(@PathVariable Integer id) {
-
+    public ResponseEntity<Void> checkoutAllRooms(@PathVariable Integer id)
+    {
         bookingService.checkOutAllRooms(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
+    public ResponseEntity<Void> cancelBooking(@PathVariable Integer id)
+    {
+        bookingService.cancelBooking(id);
         return ResponseEntity.ok().build();
     }
 }

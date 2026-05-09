@@ -57,7 +57,7 @@ export default function RoomPricing() {
       const data = await getWeeklyPricing()
       const rooms = data.rooms || []
       setRealRooms(rooms)
-      
+
       const newPrices = {}
       const uniqueSlots = new Map()
 
@@ -119,7 +119,7 @@ export default function RoomPricing() {
     const val = Number(editValue)
     const key = priceKey(editing.roomId, editing.slotId)
     const currentPrice = prices[key]
-    
+
     if (!isNaN(val) && val > 0 && currentPrice) {
       // Optimistic update
       setPrices(prev => ({ ...prev, [key]: { ...prev[key], pricePerHour: val } }))
@@ -148,7 +148,7 @@ export default function RoomPricing() {
   const handleSpecialSubmit = async () => {
     const room = realRooms.length > 0 ? realRooms.find(r => r.id === Number(specialForm.roomId)) : mockRooms.find(r => r.id === Number(specialForm.roomId))
     if (!room || !specialForm.specialDate || !specialForm.startTime || !specialForm.endTime || !specialForm.pricePerHour) return
-    
+
     try {
       if (modal === 'add') {
         const payload = {
@@ -212,7 +212,7 @@ export default function RoomPricing() {
       oldFrom: tempSlot.oldFrom.length === 5 ? tempSlot.oldFrom + ':00' : tempSlot.oldFrom,
       oldTo: tempSlot.oldTo.length === 5 ? tempSlot.oldTo + ':00' : tempSlot.oldTo,
     };
-    
+
     setSlotChanges(prev => [...prev, {
       oldStartTime: updatedSlot.oldFrom,
       oldEndTime: updatedSlot.oldTo,
@@ -276,15 +276,14 @@ export default function RoomPricing() {
           <div className="flex flex-wrap gap-1.5 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-fit">
             {DAYS.map(day => (
               <button key={day.key} onClick={() => setSelectedDay(day.key)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                  selectedDay === day.key
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${selectedDay === day.key
                     ? ['SAT', 'SUN'].includes(day.key)
                       ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
                       : 'bg-primary text-white shadow-md shadow-primary/30'
                     : ['SAT', 'SUN'].includes(day.key)
                       ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}>
+                  }`}>
                 {day.label}
               </button>
             ))}
@@ -396,10 +395,6 @@ export default function RoomPricing() {
               </table>
             </div>
           </div>
-
-          <p className="text-center text-xs text-slate-500 font-bold italic">
-            💡 Mẹo: Nhấn vào ô chứa biểu tượng đồng hồ để thay đổi khung giờ, nhấn đúp vào ô để thay đổi giá.
-          </p>
         </div>
       )}
 
@@ -493,18 +488,18 @@ export default function RoomPricing() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tên khung giờ</label>
-                <input type="text" value={tempSlot.label} onChange={e => setTempSlot({...tempSlot, label: e.target.value})}
+                <input type="text" value={tempSlot.label} onChange={e => setTempSlot({ ...tempSlot, label: e.target.value })}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Từ</label>
-                  <input type="time" value={tempSlot.from} onChange={e => setTempSlot({...tempSlot, from: e.target.value})}
+                  <input type="time" value={tempSlot.from} onChange={e => setTempSlot({ ...tempSlot, from: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/50" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Đến</label>
-                  <input type="time" value={tempSlot.to} onChange={e => setTempSlot({...tempSlot, to: e.target.value})}
+                  <input type="time" value={tempSlot.to} onChange={e => setTempSlot({ ...tempSlot, to: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/50" />
                 </div>
               </div>

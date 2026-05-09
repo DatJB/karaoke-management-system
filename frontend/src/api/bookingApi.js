@@ -49,3 +49,8 @@ export const addRoomToBooking = async (bookingId, roomId) => {
     const response = await api.post(`/bookings/${bookingId}/rooms/${roomId}`);
     return response.data;
 };
+
+export const cancelBooking = async (id) => {
+    const response = await api.put(`/bookings/${id}/cancel`);
+    return response.data;
+};

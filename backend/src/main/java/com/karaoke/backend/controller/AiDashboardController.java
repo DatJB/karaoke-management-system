@@ -8,10 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
@@ -29,7 +26,8 @@ public class AiDashboardController
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "LATEST") String sortBy)
+            @RequestParam(defaultValue = "LATEST") String sortBy,
+            @RequestParam(required = false) String sentiment)
     {
         if (startDate == null || endDate == null)
         {
@@ -37,7 +35,7 @@ public class AiDashboardController
             startDate = endDate.minusDays(7);
         }
 
-        AiDashboardResponse response = dashboardService.getDashboardData(startDate, endDate, page, size, sortBy);
+        AiDashboardResponse response = dashboardService.getDashboardData(startDate, endDate, page, size, sortBy, sentiment);
         return ResponseEntity.ok(response);
     }
 
@@ -47,8 +45,6 @@ public class AiDashboardController
             @RequestParam Integer week,
             @RequestParam Integer year)
     {
-        return dashboardService.getWeeklyReport(week, year)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(dashboardService.getWeeklyReport(week, year).orElse(null));
     }
 }

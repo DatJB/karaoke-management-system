@@ -1,9 +1,10 @@
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
 import { X, Search, UserCircle, CheckCircle2, ArrowRight, ArrowLeft, Loader2, Calendar, Clock, ClipboardList, Home } from 'lucide-react'
-import { getAllRooms } from '../../api/roomApi'
+import { getAllRooms, getAvailableRooms } from '../../api/roomApi'
 import { getAllCustomers } from '../../api/customerApi'
 import { createBooking } from '../../api/bookingApi'
+import { DateTimeSelect } from '../common/DateTimeSelect'
 
 export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1)
@@ -14,6 +15,17 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
   const [selectedRoomIds, setSelectedRoomIds] = useState([])
   const [loadingRooms, setLoadingRooms] = useState(false)
   const [roomKeyword, setRoomKeyword] = useState('')
+  const getTodayStart = () => {
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 10);
+    return `${today}T00:00`;
+  }
+  const getTodayEnd = () => {
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 10);
+    return `${today}T23:59`;
+  }
+
+  const [searchStartTime, setSearchStartTime] = useState(getTodayStart())
+  const [searchEndTime, setSearchEndTime] = useState(getTodayEnd())
 
   // Step 2: Customer Selection
   const [customers, setCustomers] = useState([])
@@ -21,29 +33,42 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [customerKeyword, setCustomerKeyword] = useState('')
 
+  const getCurrentLocalTime = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+  const getCheckoutLocalTime = () => new Date(Date.now() + 3 * 3600000 - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+
   // Step 3: Booking Info
   const [bookingData, setBookingData] = useState({
-    reservationTime: new Date().toISOString().substring(0, 16),
-    expectedCheckoutTime: new Date(Date.now() + 3 * 3600000).toISOString().substring(0, 16),
+    reservationTime: getCurrentLocalTime(),
+    expectedCheckoutTime: getCheckoutLocalTime(),
     note: '',
     checkInImmediately: false
   })
   const [saving, setSaving] = useState(false)
 
+  const fetchRooms = async () => {
+    try {
+      setLoadingRooms(true)
+      // Format as YYYY-MM-DDTHH:mm:ss by stripping the timezone 'Z' and adjusting offset if needed
+      // Since searchStartTime is already "YYYY-MM-DDTHH:mm", we can just append ":00"
+      const formatTime = (timeStr) => timeStr.length === 16 ? `${timeStr}:00` : timeStr;
+      
+      const response = await getAvailableRooms(
+        formatTime(searchStartTime),
+        formatTime(searchEndTime),
+        { size: 100 }
+      )
+      // Spring Page returns 'content', while PageResponse returns 'data'
+      setRooms(response.content || response.data || [])
+    } catch (err) {
+      console.error('Failed to fetch rooms:', err)
+    } finally {
+      setLoadingRooms(false)
+    }
+  }
+
   // Fetch available rooms
   useEffect(() => {
     if (isOpen && step === 1) {
-      const fetchRooms = async () => {
-        try {
-          setLoadingRooms(true)
-          const response = await getAllRooms({ size: 100 })
-          setRooms(response.data || [])
-        } catch (err) {
-          console.error('Failed to fetch rooms:', err)
-        } finally {
-          setLoadingRooms(false)
-        }
-      }
       fetchRooms()
     }
   }, [isOpen, step])
@@ -76,8 +101,8 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
       const payload = {
         customerId: selectedCustomerId,
         roomIds: selectedRoomIds,
-        reservationTime: new Date(bookingData.reservationTime).toISOString(),
-        expectedCheckoutTime: new Date(bookingData.expectedCheckoutTime).toISOString(),
+        reservationTime: bookingData.reservationTime.length === 16 ? `${bookingData.reservationTime}:00` : bookingData.reservationTime,
+        expectedCheckoutTime: bookingData.expectedCheckoutTime.length === 16 ? `${bookingData.expectedCheckoutTime}:00` : bookingData.expectedCheckoutTime,
         note: bookingData.note,
         checkInImmediately: bookingData.checkInImmediately
       }
@@ -97,8 +122,8 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
     setSelectedRoomIds([])
     setSelectedCustomerId(null)
     setBookingData({
-      reservationTime: new Date().toISOString().substring(0, 16),
-      expectedCheckoutTime: new Date(Date.now() + 3 * 3600000).toISOString().substring(0, 16),
+      reservationTime: getCurrentLocalTime(),
+      expectedCheckoutTime: getCheckoutLocalTime(),
       note: '',
       checkInImmediately: false
     })
@@ -141,15 +166,39 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
                  <span className="text-xs font-bold px-2 py-1 bg-primary/10 text-primary rounded-lg">Đã chọn: {selectedRoomIds.length}</span>
                </div>
                
-               <div className="relative">
-                 <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                 <input 
-                   type="text" 
-                   placeholder="Tìm nhanh tên phòng..." 
-                   value={roomKeyword}
-                   onChange={e => setRoomKeyword(e.target.value)}
-                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-primary/50 outline-none transition-all font-medium"
-                 />
+               <div className="flex flex-col gap-3">
+                 <div className="relative">
+                   <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                   <input 
+                     type="text" 
+                     placeholder="Tìm nhanh tên phòng..." 
+                     value={roomKeyword}
+                     onChange={e => setRoomKeyword(e.target.value)}
+                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:ring-2 focus:ring-primary/50 outline-none transition-all font-medium"
+                   />
+                 </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <DateTimeSelect 
+                     label="Từ giờ" 
+                     value={searchStartTime} 
+                     onChange={setSearchStartTime} 
+                   />
+                   <DateTimeSelect 
+                     label="Đến giờ" 
+                     value={searchEndTime} 
+                     onChange={setSearchEndTime} 
+                   />
+                   <div className="col-span-1 md:col-span-2">
+                     <button 
+                       onClick={fetchRooms}
+                       className="w-full px-4 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all flex items-center justify-center gap-2"
+                     >
+                       <Search size={18} />
+                       Tìm phòng rảnh
+                     </button>
+                   </div>
+                 </div>
                </div>
 
                {loadingRooms ? (
@@ -262,31 +311,19 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
                  <ClipboardList size={18} className="text-primary" /> Bước 3: Thông tin lượt hát
                </p>
 
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Thời gian nhận</label>
-                   <div className="relative">
-                     <Calendar className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                     <input 
-                       type="datetime-local" 
-                       value={bookingData.reservationTime}
-                       onChange={e => setBookingData({...bookingData, reservationTime: e.target.value})}
-                       className="w-full pl-10 pr-4 py-2 border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 outline-none"
-                     />
-                   </div>
-                 </div>
-                 <div className="space-y-2">
-                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Trả (Dự kiến)</label>
-                   <div className="relative">
-                     <Clock className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                     <input 
-                       type="datetime-local" 
-                       value={bookingData.expectedCheckoutTime}
-                       onChange={e => setBookingData({...bookingData, expectedCheckoutTime: e.target.value})}
-                       className="w-full pl-10 pr-4 py-2 border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 outline-none"
-                     />
-                   </div>
-                 </div>
+               <div className="grid grid-cols-1 gap-4">
+                 <DateTimeSelect 
+                   label="Thời gian nhận" 
+                   icon={Calendar}
+                   value={bookingData.reservationTime} 
+                   onChange={val => setBookingData({...bookingData, reservationTime: val})} 
+                 />
+                 <DateTimeSelect 
+                   label="Trả (Dự kiến)" 
+                   icon={Clock}
+                   value={bookingData.expectedCheckoutTime} 
+                   onChange={val => setBookingData({...bookingData, expectedCheckoutTime: val})} 
+                 />
                </div>
 
                <div className="space-y-2">

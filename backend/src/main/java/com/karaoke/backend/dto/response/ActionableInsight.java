@@ -10,5 +10,6 @@ public class ActionableInsight
     private Integer id;
     private String title;
     private String content;
+    private String solution;
     private String severityLevel;
 }

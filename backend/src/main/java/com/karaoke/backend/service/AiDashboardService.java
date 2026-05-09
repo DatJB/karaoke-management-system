@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface AiDashboardService
 {
-    AiDashboardResponse getDashboardData(LocalDate startDate, LocalDate endDate, int page, int size, String sortBy);
+    AiDashboardResponse getDashboardData(LocalDate startDate, LocalDate endDate, int page, int size, String sortBy, String sentiment);
 
     Optional<WeeklyInsightDTO> getWeeklyReport(Integer week, Integer year);
 }

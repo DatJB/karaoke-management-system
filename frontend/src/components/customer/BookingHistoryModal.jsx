@@ -1,9 +1,10 @@
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
-import { X, Calendar, Loader2, ArrowLeft, Clock, MapPin, ClipboardList, Trash2 as TrashIcon, Edit2, PlusCircle, Check, Save, LogIn, LogOut } from 'lucide-react'
+import { X, Calendar, Loader2, ArrowLeft, Clock, MapPin, ClipboardList, Trash2 as TrashIcon, Edit2, PlusCircle, Check, Save, LogIn, LogOut, XCircle, Search } from 'lucide-react'
 import { getCustomerBookings } from '../../api/customerApi'
-import { getBookingDetail, removeRoomFromBooking, deleteBooking, updateBookingInfo, addRoomToBooking, checkInAllRooms, checkoutAllRooms, checkInSingleRoom, checkoutSingleRoom } from '../../api/bookingApi'
-import { getAllRooms, getRoomEmployee } from '../../api/roomApi'
+import { getBookingDetail, removeRoomFromBooking, deleteBooking, updateBookingInfo, addRoomToBooking, checkInAllRooms, checkoutAllRooms, checkInSingleRoom, checkoutSingleRoom, cancelBooking } from '../../api/bookingApi'
+import { getAllRooms, getRoomEmployee, getAvailableRooms } from '../../api/roomApi'
+import { DateTimeSelect } from '../common/DateTimeSelect'
 
 export default function BookingHistoryModal({ isOpen, onClose, customer }) {
   const [bookings, setBookings] = useState([])
@@ -22,6 +23,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
   const [isAddingRoom, setIsAddingRoom] = useState(false)
   const [availableRooms, setAvailableRooms] = useState([])
   const [loadingAvailableRooms, setLoadingAvailableRooms] = useState(false)
+  const [addRoomStartTime, setAddRoomStartTime] = useState('')
+  const [addRoomEndTime, setAddRoomEndTime] = useState('')
 
   useEffect(() => {
     if (isOpen && customer) {
@@ -110,6 +113,23 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
     }
   }
 
+  const handleCancelBooking = async (id, e) => {
+    e.stopPropagation()
+    if (!window.confirm('Bạn có chắc muốn hủy đơn đặt phòng này?')) return
+    try {
+      setLoading(true)
+      await cancelBooking(id)
+      fetchBookings()
+      if (selectedBookingDetail && selectedBookingDetail.id === id) {
+        setSelectedBookingDetail(await getBookingDetail(id))
+      }
+    } catch (err) {
+      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDeleteBooking = async (id, e) => {
     e.stopPropagation()
     if (!window.confirm('Bạn có chắc muốn xóa toàn bộ đơn đặt phòng này?')) return
@@ -151,11 +171,27 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
   }
 
   const handleOpenAddRoom = async () => {
+    const startDt = new Date(selectedBookingDetail?.reservationTime || Date.now());
+    const endDt = new Date(selectedBookingDetail?.expectedCheckoutTime || Date.now() + 3 * 3600 * 1000);
+    
+    const formatLocal = (d) => {
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().substring(0, 19);
+    };
+
+    const sStr = formatLocal(startDt);
+    const eStr = formatLocal(endDt);
+    
+    setAddRoomStartTime(sStr);
+    setAddRoomEndTime(eStr);
+    setIsAddingRoom(true);
+    fetchAvailableRooms(sStr, eStr);
+  }
+
+  const fetchAvailableRooms = async (start, end) => {
     try {
-      setIsAddingRoom(true)
       setLoadingAvailableRooms(true)
-      const response = await getAllRooms({ size: 100 })
-      setAvailableRooms(response.data || [])
+      const response = await getAvailableRooms(start, end, { size: 100 })
+      setAvailableRooms(response.content || response.data || [])
     } catch (err) {
       console.error('Failed to fetch available rooms:', err)
     } finally {
@@ -273,12 +309,12 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 font-display">Thời gian đặt phòng</p>
                   {isEditingInfo ? (
-                    <input 
-                      type="datetime-local" 
-                      value={editFormData.reservationTime?.substring(0, 16)}
-                      onChange={e => setEditFormData({...editFormData, reservationTime: e.target.value})}
-                      className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-                    />
+                    <div className="w-56 text-right">
+                      <DateTimeSelect 
+                        value={editFormData.reservationTime?.substring(0, 16)}
+                        onChange={val => setEditFormData({...editFormData, reservationTime: val})}
+                      />
+                    </div>
                   ) : (
                     <p className="font-bold text-primary text-base">
                       {selectedBookingDetail.reservationTime ? new Date(selectedBookingDetail.reservationTime).toLocaleString('vi-VN') : '—'}
@@ -305,6 +341,32 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                           <p className="text-[11px] font-bold text-primary uppercase">Chọn phòng để thêm</p>
                           <button onClick={() => setIsAddingRoom(false)}><X size={14} className="text-slate-400" /></button>
                        </div>
+
+                       <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 mb-3 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Thời gian vào</label>
+                                <DateTimeSelect 
+                                   value={addRoomStartTime}
+                                   onChange={setAddRoomStartTime}
+                                />
+                             </div>
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Thời gian ra</label>
+                                <DateTimeSelect 
+                                   value={addRoomEndTime}
+                                   onChange={setAddRoomEndTime}
+                                />
+                             </div>
+                          </div>
+                          <button 
+                             onClick={() => fetchAvailableRooms(addRoomStartTime, addRoomEndTime)}
+                             className="w-full py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg hover:bg-primary-dark transition-all shadow-sm"
+                          >
+                             Tìm phòng trống theo thời gian
+                          </button>
+                       </div>
+
                        {loadingAvailableRooms ? (
                           <div className="flex justify-center p-4"><Loader2 className="animate-spin text-primary" size={20} /></div>
                        ) : availableRooms.length === 0 ? (
@@ -317,7 +379,10 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                                   onClick={() => handleConfirmAddRoom(r.id)}
                                   className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-primary hover:text-primary transition-all text-left flex items-center justify-between"
                                 >
-                                  {r.name}
+                                  <div>
+                                     <div>{r.name}</div>
+                                     <div className={`text-[9px] font-medium ${r.category === 'VIP' ? 'text-amber-500' : 'text-slate-400'}`}>{r.category}</div>
+                                  </div>
                                   <ArrowLeft size={12} className="rotate-180" />
                                 </button>
                              ))}
@@ -345,7 +410,7 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                                             <span>• {e.employeeName}</span>
                                             {e.startTime && (
                                               <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                                {new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {e.endTime ? new Date(e.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Hiện tại'}
+                                                {new Date(e.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} - {e.endTime ? new Date(e.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Hiện tại'}
                                               </span>
                                             )}
                                           </div>
@@ -414,12 +479,12 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                   <div className="flex justify-between items-center text-sm">
                      <span className="text-slate-500 flex items-center gap-2"><Clock size={14} /> Dự kiến trả</span>
                      {isEditingInfo ? (
-                        <input 
-                           type="datetime-local" 
-                           value={editFormData.expectedCheckoutTime?.substring(0, 16)}
-                           onChange={e => setEditFormData({...editFormData, expectedCheckoutTime: e.target.value})}
-                           className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
-                        />
+                        <div className="w-56 text-right">
+                          <DateTimeSelect 
+                            value={editFormData.expectedCheckoutTime?.substring(0, 16)}
+                            onChange={val => setEditFormData({...editFormData, expectedCheckoutTime: val})}
+                          />
+                        </div>
                      ) : (
                         <span className="font-bold text-slate-700 dark:text-slate-200">
                           {selectedBookingDetail.expectedCheckoutTime ? new Date(selectedBookingDetail.expectedCheckoutTime).toLocaleString('vi-VN') : '—'}
@@ -515,6 +580,15 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
                        >
                          <Edit2 size={14} />
                        </button>
+                       {['BOOKED'].includes(booking.status?.toUpperCase()) && (
+                         <button 
+                           onClick={(e) => handleCancelBooking(booking.id, e)}
+                           className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                           title="Hủy đơn đặt phòng"
+                         >
+                           <XCircle size={14} />
+                         </button>
+                       )}
                        <button 
                          onClick={(e) => handleDeleteBooking(booking.id, e)}
                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"

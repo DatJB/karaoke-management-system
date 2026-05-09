@@ -21,6 +21,8 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
 
     Page<Feedback> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end, Pageable pageable);
 
+    Page<Feedback> findBySentimentLabelAndCreatedAtBetween(Feedback.SentimentLabel sentiment, LocalDateTime start, LocalDateTime end, Pageable pageable);
+
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     long countBySentimentLabelAndCreatedAtBetween(Feedback.SentimentLabel sentiment, LocalDateTime start, LocalDateTime end);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { getAllRooms, createRoom, updateRoom, deleteRoom } from '../api/roomApi'
+import { getAllRooms, getAvailableRooms, createRoom, updateRoom, deleteRoom } from '../api/roomApi'
 import { getServingRooms } from '../api/profile'
 import { useAuth } from '../context/AuthContext'
 import RoomCard from '../components/room/RoomCard'
@@ -8,6 +8,8 @@ import RoomDetailModal from '../components/room/RoomDetailModal'
 import RoomFormModal from '../components/room/RoomFormModal'
 import ComboBookingModal from '../components/room/ComboBookingModal'
 import ConfirmModal from '../components/common/ConfirmModal'
+import { DateTimeSelect } from '../components/common/DateTimeSelect'
+import { Search } from 'lucide-react'
 
 export default function RoomMap() {
   const { user } = useAuth()
@@ -33,6 +35,18 @@ export default function RoomMap() {
   const [roomToDelete, setRoomToDelete] = useState(null)
   const [isComboOpen, setIsComboOpen] = useState(false)
 
+  const getTodayStart = () => {
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 10);
+    return `${today}T00:00`;
+  }
+  const getTodayEnd = () => {
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().substring(0, 10);
+    return `${today}T23:59`;
+  }
+  const [searchStartTime, setSearchStartTime] = useState(getTodayStart())
+  const [searchEndTime, setSearchEndTime] = useState(getTodayEnd())
+  const [isTimeSearchActive, setIsTimeSearchActive] = useState(false)
+
   const fetchRooms = async () => {
     try {
       setLoading(true)
@@ -53,6 +67,21 @@ export default function RoomMap() {
         const filtered = mappedRooms.filter(r => {
           if (categoryFilter !== 'ALL' && r.category !== categoryFilter) return false
           if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
+          if (capacityFilter === 'SMALL' && r.size >= 10) return false
+          if (capacityFilter === 'MEDIUM' && (r.size < 10 || r.size > 20)) return false
+          if (capacityFilter === 'LARGE' && r.size <= 20) return false
+          return true
+        })
+        setRooms(filtered)
+        setTotalPages(1)
+      } else if (isTimeSearchActive) {
+        // Fetch available rooms for the specified time
+        const formatTime = (timeStr) => timeStr.length === 16 ? `${timeStr}:00` : timeStr;
+        const response = await getAvailableRooms(formatTime(searchStartTime), formatTime(searchEndTime), { size: 100 })
+        const availableRooms = response.content || response.data || []
+        // Apply filters
+        const filtered = availableRooms.filter(r => {
+          if (categoryFilter !== 'ALL' && r.category !== categoryFilter) return false
           if (capacityFilter === 'SMALL' && r.size >= 10) return false
           if (capacityFilter === 'MEDIUM' && (r.size < 10 || r.size > 20)) return false
           if (capacityFilter === 'LARGE' && r.size <= 20) return false
@@ -85,11 +114,11 @@ export default function RoomMap() {
 
   useEffect(() => {
     setPage(1)
-  }, [categoryFilter, capacityFilter, statusFilter, filter])
+  }, [categoryFilter, capacityFilter, statusFilter, filter, isTimeSearchActive])
 
   useEffect(() => {
     fetchRooms()
-  }, [page, categoryFilter, capacityFilter, statusFilter, filter])
+  }, [page, categoryFilter, capacityFilter, statusFilter, filter, isTimeSearchActive])
 
   const handleSaveRoom = async (data) => {
     if (editingRoom) {
@@ -168,28 +197,68 @@ export default function RoomMap() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 w-full justify-end sm:justify-start">
-              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-primary shrink-0">
-                <option value="ALL">Mọi loại phòng</option>
-                <option value="VIP">VIP</option>
-                <option value="STANDARD">Standard</option>
-              </select>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-primary shrink-0">
-                <option value="ALL">Mọi trạng thái</option>
-                <option value="AVAILABLE">Trống</option>
-                <option value="OCCUPIED">Đang hát</option>
-                <option value="RESERVED">Đã đặt</option>
-                <option value="MAINTENANCE">Bảo trì</option>
-              </select>
-              <select value={capacityFilter} onChange={e => setCapacityFilter(e.target.value)}
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-primary shrink-0">
-                <option value="ALL">Mọi sức chứa</option>
-                <option value="SMALL">Dưới 10 người</option>
-                <option value="MEDIUM">10 - 20 người</option>
-                <option value="LARGE">Trên 20 người</option>
-              </select>
+            <div className="flex flex-col lg:flex-row gap-3 w-full justify-end lg:justify-start">
+              {/* Time Search Bar */}
+              <div className="flex flex-col gap-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="min-w-[220px] flex-1">
+                    <DateTimeSelect 
+                      label="Từ giờ" 
+                      value={searchStartTime} 
+                      onChange={setSearchStartTime} 
+                    />
+                  </div>
+                  <div className="min-w-[220px] flex-1">
+                    <DateTimeSelect 
+                      label="Đến giờ" 
+                      value={searchEndTime} 
+                      onChange={setSearchEndTime} 
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setIsTimeSearchActive(true)}
+                    className="flex-1 px-4 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all flex items-center justify-center gap-2"
+                  >
+                    <Search size={18} />
+                    Tìm phòng trống
+                  </button>
+                  {isTimeSearchActive && (
+                    <button 
+                      onClick={() => { setIsTimeSearchActive(false); setStatusFilter('ALL'); }}
+                      className="px-4 py-2 text-slate-500 hover:text-slate-700 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all text-sm whitespace-nowrap"
+                    >
+                      Hủy lọc
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Status and Capacity Filters */}
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 lg:pt-0">
+                <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px]">
+                  <option value="ALL">Mọi loại phòng</option>
+                  <option value="VIP">VIP</option>
+                  <option value="STANDARD">Standard</option>
+                </select>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} disabled={isTimeSearchActive}
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px] disabled:opacity-50">
+                  <option value="ALL">Mọi trạng thái</option>
+                  <option value="AVAILABLE">Trống</option>
+                  <option value="OCCUPIED">Đang hát</option>
+                  <option value="RESERVED">Đã đặt</option>
+                  <option value="MAINTENANCE">Bảo trì</option>
+                </select>
+                <select value={capacityFilter} onChange={e => setCapacityFilter(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px]">
+                  <option value="ALL">Mọi sức chứa</option>
+                  <option value="SMALL">Dưới 10 người</option>
+                  <option value="MEDIUM">10 - 20 người</option>
+                  <option value="LARGE">Trên 20 người</option>
+                </select>
+              </div>
             </div>
 
             {user.role === 'STAFF' && (

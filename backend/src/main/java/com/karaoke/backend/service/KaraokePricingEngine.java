@@ -24,7 +24,8 @@ public class KaraokePricingEngine
     private final RoomPriceRepository normalRepo;
     private final RoomPriceSpecialRepository specialRepo;
 
-    public PricingCalculationResult calculateRoomPriceWithSlices(Integer roomId, LocalDateTime checkinTime, LocalDateTime checkoutTime) {
+    public PricingCalculationResult calculateRoomPriceWithSlices(Integer roomId, LocalDateTime checkinTime, LocalDateTime checkoutTime)
+    {
         PricingCalculationResult result = new PricingCalculationResult();
         LocalDateTime currentCalcTime = checkinTime;
 
@@ -36,7 +37,7 @@ public class KaraokePricingEngine
             BigDecimal currentPricePerHour = BigDecimal.ZERO;
             LocalTime blockEndTime = LocalTime.MAX;
 
-            // 1. Tìm giá trị của lát cắt (Ưu tiên Lễ -> Ngày thường)
+            // Slice value
             Optional<RoomPriceSpecial> specialOpt = specialRepo.findActiveSpecialPrice(roomId, today, now);
             if (specialOpt.isPresent()) {
                 currentPricePerHour = specialOpt.get().getPricePerHour();
@@ -49,23 +50,21 @@ public class KaraokePricingEngine
                 }
             }
 
-            // 2. Định tuyến điểm kết thúc của lát cắt
+            // Slice end
             LocalDateTime endOfBlockDateTime = LocalDateTime.of(today, blockEndTime);
             if (blockEndTime.equals(LocalTime.MAX) || blockEndTime.equals(LocalTime.of(23, 59, 59))) {
                 endOfBlockDateTime = currentCalcTime.plusDays(1).with(LocalTime.MIDNIGHT);
             }
             LocalDateTime endOfSlice = checkoutTime.isBefore(endOfBlockDateTime) ? checkoutTime : endOfBlockDateTime;
 
-            // 3. Tính tiền lát cắt hiện tại
+            // Present slice
             long minutes = ChronoUnit.MINUTES.between(currentCalcTime, endOfSlice);
             BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
             BigDecimal sliceCost = currentPricePerHour.multiply(hours);
 
-            // Cập nhật tổng số liệu
             result.setTotalCost(result.getTotalCost().add(sliceCost));
             result.setTotalHours(result.getTotalHours().add(hours));
 
-            // Đóng gói chi tiết hiển thị cho UI
             TimeSliceDto sliceDto = new TimeSliceDto();
             sliceDto.setStartTime(currentCalcTime.toLocalTime());
             sliceDto.setEndTime(endOfSlice.toLocalTime());
@@ -74,7 +73,7 @@ public class KaraokePricingEngine
             sliceDto.setAmount(sliceCost);
             result.getSlices().add(sliceDto);
 
-            // 4. Nhảy kim đồng hồ sang lát cắt tiếp theo
+            // Next slice
             currentCalcTime = endOfSlice;
             if (minutes == 0) break;
         }

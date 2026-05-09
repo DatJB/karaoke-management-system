@@ -25,7 +25,6 @@ public class Feedback {
     @JoinColumn(name = "invoice_id", unique = true, nullable = false)
     private Invoice invoice;
 
-    @Column(precision = 2, scale = 1)
     private Double rating;
 
     @Lob
@@ -51,7 +50,8 @@ public class Feedback {
     private LocalDateTime createdAt;
 
     @PrePersist
-    protected void onCreate() {
+    protected void onCreate()
+    {
         if (createdAt == null)
             createdAt = LocalDateTime.now();
     }

@@ -9,10 +9,15 @@ import com.karaoke.backend.dto.response.PageResponse;
 import com.karaoke.backend.dto.response.RoomResponse;
 import com.karaoke.backend.service.RoomService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -89,5 +94,16 @@ public class RoomController
     public ResponseEntity<String> updateTimeSlot(@RequestBody List<com.karaoke.backend.dto.request.TimeSlotUpdateRequest> requests) {
         roomPriceService.updateTimeSlots(requests);
         return ResponseEntity.ok("Cập nhật khung giờ thành công");
+    }
+
+    @GetMapping("/available")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_RECEPTIONIST', 'ROLE_MANAGER')")
+    public ResponseEntity<Page<RoomResponse>> getAvailableRooms(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            @PageableDefault(size = 10) Pageable pageable)
+    {
+        Page<RoomResponse> rooms = roomService.findAvailableRooms(start, end, pageable);
+        return ResponseEntity.ok(rooms);
     }
 }

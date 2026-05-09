@@ -13,8 +13,9 @@ import java.time.LocalTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WeeklyPriceRequest {
-    private Integer id; // Thêm trường ID để update chính xác bản ghi
+public class WeeklyPriceRequest
+{
+    private Integer id;
     private RoomPrice.DayOfWeek dayOfWeek;
     private LocalTime startTime;
     private LocalTime endTime;

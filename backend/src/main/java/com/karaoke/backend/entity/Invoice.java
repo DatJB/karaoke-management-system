@@ -30,6 +30,9 @@ public class Invoice {
     @Column(name = "service_price", precision = 12, scale = 2)
     private BigDecimal servicePrice = BigDecimal.ZERO;
 
+    @Column(name = "discount_percent", precision = 12, scale = 2)
+    private BigDecimal discountPercent = BigDecimal.ZERO;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal discount = BigDecimal.ZERO;
 

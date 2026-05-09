@@ -1,5 +1,7 @@
 package com.karaoke.backend.controller;
 
+import com.karaoke.backend.dto.request.DiscountPercentRequest;
+import com.karaoke.backend.dto.request.DiscountRequest;
 import com.karaoke.backend.dto.response.InvoiceDetailResponse;
 import com.karaoke.backend.dto.response.InvoiceSummaryResponse;
 import com.karaoke.backend.service.InvoiceService;
@@ -44,7 +46,7 @@ public class InvoiceController
     }
 
     @PatchMapping("/{id}/pay")
-    @PreAuthorize("hasAnyRole('REEPTIONIST', 'ADMIN', 'STAFF')")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST', 'ADMIN', 'MANAGER')")
     public ResponseEntity<?> confirmPayment(@PathVariable Integer id)
     {
         try {
@@ -55,6 +57,34 @@ public class InvoiceController
             ));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/discount-percent")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<?> applyDiscountPercent(
+            @PathVariable Integer id,
+            @RequestBody DiscountPercentRequest request)
+    {
+        try {
+            invoiceService.applyPercentageDiscount(id, request.getDiscountPercent());
+            return ResponseEntity.ok("Đã áp dụng giảm " + request.getDiscountPercent() + "% thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/discount")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<?> applyDiscount(
+            @PathVariable Integer id,
+            @RequestBody DiscountRequest request)
+    {
+        try {
+            invoiceService.applyDirectDiscount(id, request.getDiscountAmount());
+            return ResponseEntity.ok("Đã áp dụng giảm giá thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

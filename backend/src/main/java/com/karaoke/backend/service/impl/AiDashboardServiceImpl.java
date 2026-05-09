@@ -33,7 +33,7 @@ public class AiDashboardServiceImpl implements AiDashboardService
     private final WeeklyInsightReportRepository weeklyInsightReportRepository;
 
     @Override
-    public AiDashboardResponse getDashboardData(LocalDate startDate, LocalDate endDate, int page, int size, String sortBy)
+    public AiDashboardResponse getDashboardData(LocalDate startDate, LocalDate endDate, int page, int size, String sortBy, String sentiment)
     {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(23, 59, 59);
@@ -53,7 +53,14 @@ public class AiDashboardServiceImpl implements AiDashboardService
                 : Sort.by(Sort.Direction.ASC, "createdAt");
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Feedback> feedbackPage = feedbackRepository.findByCreatedAtBetween(start, end, pageable);
+        Page<Feedback> feedbackPage;
+        if (sentiment != null && !"LATEST".equalsIgnoreCase(sentiment) && !"ALL".equalsIgnoreCase(sentiment)) {
+            feedbackPage = feedbackRepository.findBySentimentLabelAndCreatedAtBetween(
+                    Feedback.SentimentLabel.valueOf(sentiment.toUpperCase()), start, end, pageable);
+        } else {
+            feedbackPage = feedbackRepository.findByCreatedAtBetween(start, end, pageable);
+        }
+        
         Page<LiveFeedback> liveFeedbacks = feedbackPage.map(this::mapToLiveFeedback);
 
         return AiDashboardResponse.builder()
@@ -93,6 +100,7 @@ public class AiDashboardServiceImpl implements AiDashboardService
                 .id(report.getId())
                 .title(report.getInsightTitle())
                 .content(report.getInsightContent())
+                .solution(report.getSolution())
                 .severityLevel(report.getSeverityLevel() != null ? report.getSeverityLevel().name() : "LOW")
                 .build();
     }
@@ -113,6 +121,8 @@ public class AiDashboardServiceImpl implements AiDashboardService
                 .id(feedback.getId())
                 .customerName(customerName)
                 .sentiment(feedback.getSentimentLabel() != null ? feedback.getSentimentLabel().name() : "NEUTRAL")
+                .rating(feedback.getRating())
+                .sentimentScore(feedback.getSentimentScore())
                 .comment(feedback.getComment())
                 .tags(displayTags)
                 .build();
