@@ -64,7 +64,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     @Override
     @Transactional
     public void updateWeeklyPrices(Integer roomId, List<WeeklyPriceRequest> requests) {
-        roomRepository.findById(roomId)
+        Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Room not found with id: " + roomId));
 
         List<RoomPrice> allRoomPrices = new ArrayList<>(roomPriceRepository.findByRoomId(roomId));
@@ -76,15 +76,34 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         List<Booking> activeBookings = bookingRepository.findByRoomIdAndStatuses(roomId, activeStatuses);
 
         for (WeeklyPriceRequest req : requests) {
-            if (req.getId() == null) {
-                throw new IllegalArgumentException("ID khung giá là bắt buộc.");
-            }
+            RoomPrice priceToUpdate;
+            boolean isNew = false;
 
-            RoomPrice priceToUpdate = roomPriceRepository.findById(req.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giá với id: " + req.getId()));
+            if (req.getId() != null) {
+                priceToUpdate = roomPriceRepository.findById(req.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giá với id: " + req.getId()));
 
-            if (!priceToUpdate.getRoom().getId().equals(roomId)) {
-                throw new IllegalArgumentException("Khung giá ID " + req.getId() + " không thuộc về phòng này.");
+                if (!priceToUpdate.getRoom().getId().equals(roomId)) {
+                    throw new IllegalArgumentException("Khung giá ID " + req.getId() + " không thuộc về phòng này.");
+                }
+            } else {
+                // Upsert logic
+                priceToUpdate = allRoomPrices.stream()
+                        .filter(p -> p.getDayOfWeek().equals(req.getDayOfWeek()) && 
+                                     p.getStartTime().equals(req.getStartTime()) && 
+                                     p.getEndTime().equals(req.getEndTime()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (priceToUpdate == null) {
+                    priceToUpdate = new RoomPrice();
+                    priceToUpdate.setRoom(room);
+                    priceToUpdate.setDayOfWeek(req.getDayOfWeek());
+                    priceToUpdate.setStartTime(req.getStartTime());
+                    priceToUpdate.setEndTime(req.getEndTime());
+                    priceToUpdate.setPricePerHour(java.math.BigDecimal.ZERO);
+                    isNew = true;
+                }
             }
 
             if (req.getStartTime() == null) req.setStartTime(priceToUpdate.getStartTime());
@@ -92,7 +111,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             if (req.getDayOfWeek() == null) req.setDayOfWeek(priceToUpdate.getDayOfWeek());
             if (req.getPricePerHour() == null) req.setPricePerHour(priceToUpdate.getPricePerHour());
 
-            boolean isChanged = req.getPricePerHour().compareTo(priceToUpdate.getPricePerHour()) != 0 ||
+            boolean isChanged = isNew ||
+                                req.getPricePerHour().compareTo(priceToUpdate.getPricePerHour()) != 0 ||
                                 !req.getStartTime().equals(priceToUpdate.getStartTime()) ||
                                 !req.getEndTime().equals(priceToUpdate.getEndTime()) ||
                                 !req.getDayOfWeek().equals(priceToUpdate.getDayOfWeek());
@@ -101,9 +121,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 //Kiểm tra chồng lấn
                 validateNoInternalPriceOverlap(req, allRoomPrices, priceToUpdate.getId());
 
-                //Kiểm tra Booking
-                validateNoBookingOverlap(priceToUpdate.getDayOfWeek(), priceToUpdate.getStartTime(), priceToUpdate.getEndTime(), activeBookings);
-                if (!req.getStartTime().equals(priceToUpdate.getStartTime()) || !req.getEndTime().equals(priceToUpdate.getEndTime()) || !req.getDayOfWeek().equals(priceToUpdate.getDayOfWeek())) {
+                //Kiểm tra Booking (chỉ cho record đã tồn tại có thể liên quan booking cũ)
+                if (!isNew) {
+                    validateNoBookingOverlap(priceToUpdate.getDayOfWeek(), priceToUpdate.getStartTime(), priceToUpdate.getEndTime(), activeBookings);
+                }
+                
+                // Kiểm tra booking cho khung giờ mới
+                if (isNew || !req.getStartTime().equals(priceToUpdate.getStartTime()) || !req.getEndTime().equals(priceToUpdate.getEndTime()) || !req.getDayOfWeek().equals(priceToUpdate.getDayOfWeek())) {
                     validateNoBookingOverlap(req.getDayOfWeek(), req.getStartTime(), req.getEndTime(), activeBookings);
                 }
 
@@ -112,8 +136,12 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 priceToUpdate.setEndTime(req.getEndTime());
                 priceToUpdate.setPricePerHour(req.getPricePerHour());
                 
-                roomPriceRepository.save(priceToUpdate);
-                updateAllPricesList(allRoomPrices, priceToUpdate);
+                RoomPrice saved = roomPriceRepository.save(priceToUpdate);
+                if (isNew) {
+                    allRoomPrices.add(saved);
+                } else {
+                    updateAllPricesList(allRoomPrices, saved);
+                }
             }
         }
     }

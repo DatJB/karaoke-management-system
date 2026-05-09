@@ -63,13 +63,16 @@ export default function RoomPricing() {
 
       rooms.forEach(room => {
         room.prices.forEach(p => {
-          const slotId = `${p.startTime}-${p.endTime}`
+          const sNormalized = p.startTime.substring(0, 5)
+          const eNormalized = p.endTime.substring(0, 5)
+          const slotId = `${sNormalized}-${eNormalized}`
+          
           if (!uniqueSlots.has(slotId)) {
             uniqueSlots.set(slotId, {
               id: slotId,
-              label: `Khung ${p.startTime.substring(0, 5)} - ${p.endTime.substring(0, 5)}`,
-              from: p.startTime.substring(0, 5),
-              to: p.endTime.substring(0, 5)
+              label: `Khung ${sNormalized} - ${eNormalized}`,
+              from: sNormalized,
+              to: eNormalized
             })
           }
           newPrices[`${room.id}_${p.dayOfWeek}_${slotId}`] = {
@@ -119,16 +122,29 @@ export default function RoomPricing() {
     const val = Number(editValue)
     const key = priceKey(editing.roomId, editing.slotId)
     const currentPrice = prices[key]
+    
+    // Find the slot object to get times
+    const slot = slots.find(s => s.id === editing.slotId)
 
-    if (!isNaN(val) && val > 0 && currentPrice) {
+    if (!isNaN(val) && val >= 0 && slot) {
       // Optimistic update
-      setPrices(prev => ({ ...prev, [key]: { ...prev[key], pricePerHour: val } }))
+      setPrices(prev => ({ 
+        ...prev, 
+        [key]: { 
+          ...(prev[key] || {}), 
+          pricePerHour: val,
+          dayOfWeek: selectedDay,
+          startTime: slot.from.length === 5 ? slot.from + ':00' : slot.from,
+          endTime: slot.to.length === 5 ? slot.to + ':00' : slot.to
+        } 
+      }))
+
       try {
         await updateWeeklyPrices(editing.roomId, [{
-          id: currentPrice.id,
-          dayOfWeek: currentPrice.dayOfWeek,
-          startTime: currentPrice.startTime,
-          endTime: currentPrice.endTime,
+          id: currentPrice?.id || null,
+          dayOfWeek: selectedDay,
+          startTime: slot.from.length === 5 ? slot.from + ':00' : slot.from,
+          endTime: slot.to.length === 5 ? slot.to + ':00' : slot.to,
           pricePerHour: val
         }])
         toast.success('Đã lưu giá thành công')
