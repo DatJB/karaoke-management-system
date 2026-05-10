@@ -16,8 +16,11 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -196,6 +199,7 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
         }
     }
 
+    @Retryable(maxAttempts = 3, backoff = @Backoff(delay = 60000))
     @Transactional
     public void generateWeeklyReport(LocalDate dateInWeek)
     {
@@ -244,11 +248,28 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
             report.setNegativeCount((int) negative);
 
             report.setTopIssuesSummary(resultNode.path("topIssuesSummary").asText());
-            report.setWeeklyActionPlan(resultNode.path("weeklyActionPlan").asText());
+
+            JsonNode actionPlanNode = resultNode.path("weeklyActionPlan");
+            if (actionPlanNode.isArray())
+            {
+                List<String> actions = new ArrayList<>();
+                for (JsonNode node : actionPlanNode)
+                {
+                    actions.add("- " + (node.isObject() ? node.toString() : node.asText()));
+                }
+                report.setWeeklyActionPlan(String.join("\n", actions));
+            } else
+            {
+                report.setWeeklyActionPlan(actionPlanNode.asText());
+            }
 
             weeklyInsightReportRepository.save(report);
             log.info("Đã lưu báo cáo tuần {} thành công!", weekNumber);
 
+        } catch (HttpClientErrorException.TooManyRequests e)
+        {
+            log.warn("Quá tải API Gemini (Lỗi 429). Đang nhường quyền cho @Retryable chờ 60s và thử lại...");
+            throw e;
         } catch (Exception e) {
             log.error("Lỗi tạo báo cáo tuần: {}", e.getMessage());
         }
