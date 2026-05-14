@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
+import { toast } from 'react-hot-toast'
 import { X, Calendar, Loader2, ArrowLeft, Clock, MapPin, ClipboardList, Trash2 as TrashIcon, Edit2, PlusCircle, Check, Save, LogIn, LogOut, XCircle, Search } from 'lucide-react'
 import { getCustomerBookings } from '../../api/customerApi'
 import { getBookingDetail, removeRoomFromBooking, deleteBooking, updateBookingInfo, addRoomToBooking, checkInAllRooms, checkoutAllRooms, checkInSingleRoom, checkoutSingleRoom, cancelBooking } from '../../api/bookingApi'
@@ -47,6 +48,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setTotalPages(data.totalPages || 1)
     } catch (err) {
       console.error('Failed to fetch bookings:', err)
+      const message = err.response?.data?.message || 'Không thể tải lịch sử đặt phòng'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -74,7 +77,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setSelectedBookingDetail(data)
     } catch (err) {
       console.error('Failed to fetch booking detail:', err)
-      alert('Không công lấy được chi tiết đơn đặt phòng.')
+      const message = err.response?.data?.message || 'Không thể lấy chi tiết đơn đặt phòng'
+      toast.error(message)
     } finally {
       setLoadingDetail(false)
     }
@@ -90,7 +94,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       else await checkoutAllRooms(id)
       fetchBookings()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi thực hiện thao tác'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -107,7 +112,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setSelectedBookingDetail(updated)
       fetchBookings()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi thực hiện thao tác'
+      toast.error(message)
     } finally {
       setLoadingDetail(false)
     }
@@ -124,7 +130,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
         setSelectedBookingDetail(await getBookingDetail(id))
       }
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi hủy đơn'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -138,7 +145,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       await deleteBooking(id)
       fetchBookings()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi xóa đơn'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -164,7 +172,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setIsEditingInfo(false)
       fetchBookings()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin'
+      toast.error(message)
     } finally {
       setLoadingDetail(false)
     }
@@ -194,6 +203,9 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setAvailableRooms(response.content || response.data || [])
     } catch (err) {
       console.error('Failed to fetch available rooms:', err)
+      const message = err.response?.data?.message || 'Không thể tải danh sách phòng trống'
+      toast.error(message)
+      setAvailableRooms([])
     } finally {
       setLoadingAvailableRooms(false)
     }
@@ -208,7 +220,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setIsAddingRoom(false)
       fetchBookings()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi thêm phòng'
+      toast.error(message)
     } finally {
       setLoadingDetail(false)
     }
@@ -223,7 +236,8 @@ export default function BookingHistoryModal({ isOpen, onClose, customer }) {
       setSelectedBookingDetail(updated)
       fetchBookings()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi xóa phòng'
+      toast.error(message)
     } finally {
       setLoadingDetail(false)
     }

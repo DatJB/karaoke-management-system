@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,7 +36,7 @@ public class DashboardServiceImpl implements DashboardService {
     public DashboardResponse getDashboardStats()
     {
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        LocalDateTime startOfWeek = LocalDateTime.now().minusDays(7);
+        LocalDateTime startOfWeek = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();;
 
         BigDecimal todayRevenue = invoiceRepository.sumTodayRevenue();
         long todayBookings = bookingRepository.countByCreatedAtAfter(startOfDay);

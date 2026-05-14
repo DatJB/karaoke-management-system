@@ -91,7 +91,7 @@ export default function PayrollList() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">Danh sách bảng lương</h1>
+          <h1 className="text-2xl font-display font-semibold text-slate-900 dark:text-white mb-1">Danh sách bảng lương</h1>
           <p className="text-slate-500 dark:text-slate-400">Quản lý và tra cứu các bảng lương đã tính theo thời gian.</p>
         </div>
         <Link to="/payroll"

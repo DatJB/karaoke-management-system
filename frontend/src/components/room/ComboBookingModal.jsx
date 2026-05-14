@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
+import { toast } from 'react-hot-toast'
 import { X, Search, UserCircle, CheckCircle2, ArrowRight, ArrowLeft, Loader2, Calendar, Clock, ClipboardList, Home } from 'lucide-react'
 import { getAllRooms, getAvailableRooms } from '../../api/roomApi'
 import { getAllCustomers } from '../../api/customerApi'
@@ -61,6 +62,9 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
       setRooms(response.content || response.data || [])
     } catch (err) {
       console.error('Failed to fetch rooms:', err)
+      const message = err.response?.data?.message || 'Không thể tải danh sách phòng'
+      toast.error(message)
+      setRooms([])
     } finally {
       setLoadingRooms(false)
     }
@@ -83,6 +87,9 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
           setCustomers(response.data || [])
         } catch (err) {
           console.error('Failed to fetch customers:', err)
+          const message = err.response?.data?.message || 'Không thể tải danh sách khách hàng'
+          toast.error(message)
+          setCustomers([])
         } finally {
           setLoadingCustomers(false)
         }
@@ -111,7 +118,8 @@ export default function ComboBookingModal({ isOpen, onClose, onSuccess }) {
       onClose()
       resetForm()
     } catch (err) {
-      alert('Có lỗi xảy ra: ' + (err.response?.data?.message || err.message))
+      const message = err.response?.data?.message || 'Có lỗi xảy ra khi đặt combo'
+      toast.error(message)
     } finally {
       setSaving(false)
     }

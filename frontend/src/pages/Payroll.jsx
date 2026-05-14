@@ -165,7 +165,7 @@ export default function Payroll() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">
+          <h1 className="text-2xl font-display font-semibold text-slate-900 dark:text-white mb-1">
             {currentPeriod ? currentPeriod.name || 'Chi tiết kỳ lương' : 'Tính lương'}
           </h1>
           <p className="text-slate-500 dark:text-slate-400">

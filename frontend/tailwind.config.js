@@ -29,7 +29,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
-        display: ['Outfit', 'sans-serif'],
+        display: ['Be Vietnam Pro', 'sans-serif'],
       }
     },
   },

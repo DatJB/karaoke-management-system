@@ -89,7 +89,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-1">
+        <h1 className="text-2xl font-display font-semibold text-slate-900 dark:text-white mb-1">
           Tổng quan
         </h1>
         <p className="text-slate-500 dark:text-slate-400">Theo dõi hoạt động kinh doanh ngày hôm nay.</p>

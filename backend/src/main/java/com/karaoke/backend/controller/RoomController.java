@@ -101,7 +101,7 @@ public class RoomController
     public ResponseEntity<Page<RoomResponse>> getAvailableRooms(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
-            @PageableDefault(size = 10) Pageable pageable)
+            @PageableDefault(size = 8) Pageable pageable)
     {
         Page<RoomResponse> rooms = roomService.findAvailableRooms(start, end, pageable);
         return ResponseEntity.ok(rooms);

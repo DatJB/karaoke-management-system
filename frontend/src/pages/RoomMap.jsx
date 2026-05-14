@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'react-hot-toast'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { getAllRooms, getAvailableRooms, createRoom, updateRoom, deleteRoom } from '../api/roomApi'
 import { getServingRooms } from '../api/profile'
@@ -50,7 +51,7 @@ export default function RoomMap() {
   const fetchRooms = async () => {
     try {
       setLoading(true)
-      
+
       if (filter === 'ASSIGNED') {
         const response = await getServingRooms()
         const mappedRooms = (response || []).map(r => ({
@@ -65,6 +66,7 @@ export default function RoomMap() {
           staffList: [{ name: user.name }]
         }))
         const filtered = mappedRooms.filter(r => {
+          if (filter === 'ASSIGNED' && r.status === 'AVAILABLE') return false
           if (categoryFilter !== 'ALL' && r.category !== categoryFilter) return false
           if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
           if (capacityFilter === 'SMALL' && r.size >= 10) return false
@@ -92,7 +94,7 @@ export default function RoomMap() {
       } else {
         const params = {
           page,
-          size: 5,
+          size: 8,
           category: categoryFilter !== 'ALL' ? categoryFilter : undefined,
           status: statusFilter !== 'ALL' ? statusFilter : undefined,
         }
@@ -107,6 +109,9 @@ export default function RoomMap() {
       }
     } catch (error) {
       console.error('Failed to fetch rooms:', error)
+      const message = error.response?.data?.message || 'Không thể tải danh sách phòng'
+      toast.error(message)
+      setRooms([])
     } finally {
       setLoading(false)
     }
@@ -121,12 +126,21 @@ export default function RoomMap() {
   }, [page, categoryFilter, capacityFilter, statusFilter, filter, isTimeSearchActive])
 
   const handleSaveRoom = async (data) => {
-    if (editingRoom) {
-      await updateRoom(editingRoom.id, data)
-    } else {
-      await createRoom(data)
+    try {
+      if (editingRoom) {
+        await updateRoom(editingRoom.id, data)
+        toast.success('Cập nhật phòng thành công')
+      } else {
+        await createRoom(data)
+        toast.success('Thêm phòng mới thành công')
+      }
+      setIsFormOpen(false)
+      fetchRooms()
+    } catch (error) {
+      console.error('Failed to save room:', error)
+      const message = error.response?.data?.message || 'Không thể lưu thông tin phòng'
+      toast.error(message)
     }
-    fetchRooms()
   }
 
   const handleDeleteRoom = async (id) => {
@@ -138,10 +152,14 @@ export default function RoomMap() {
     if (!roomToDelete) return
     try {
       await deleteRoom(roomToDelete)
+      toast.success('Xóa phòng thành công')
+      setIsConfirmOpen(false)
       setSelectedRoom(null)
       fetchRooms()
     } catch (error) {
       console.error('Failed to delete room:', error)
+      const message = error.response?.data?.message || 'Không thể xóa phòng'
+      toast.error(message)
     }
   }
 
@@ -164,7 +182,7 @@ export default function RoomMap() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <div className="flex items-center gap-4 mb-1">
-              <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Sơ đồ phòng</h1>
+              <h1 className="text-2xl font-display font-semibold text-slate-900 dark:text-white">Sơ đồ phòng</h1>
               {user.role === 'ADMIN' && (
                 <button onClick={handleOpenAdd}
                   className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/25">
@@ -196,69 +214,29 @@ export default function RoomMap() {
               ))}
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col lg:flex-row gap-3 w-full justify-end lg:justify-start">
-              {/* Time Search Bar */}
-              <div className="flex flex-col gap-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="min-w-[220px] flex-1">
-                    <DateTimeSelect 
-                      label="Từ giờ" 
-                      value={searchStartTime} 
-                      onChange={setSearchStartTime} 
-                    />
-                  </div>
-                  <div className="min-w-[220px] flex-1">
-                    <DateTimeSelect 
-                      label="Đến giờ" 
-                      value={searchEndTime} 
-                      onChange={setSearchEndTime} 
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setIsTimeSearchActive(true)}
-                    className="flex-1 px-4 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all flex items-center justify-center gap-2"
-                  >
-                    <Search size={18} />
-                    Tìm phòng trống
-                  </button>
-                  {isTimeSearchActive && (
-                    <button 
-                      onClick={() => { setIsTimeSearchActive(false); setStatusFilter('ALL'); }}
-                      className="px-4 py-2 text-slate-500 hover:text-slate-700 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all text-sm whitespace-nowrap"
-                    >
-                      Hủy lọc
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Status and Capacity Filters */}
-              <div className="flex flex-col sm:flex-row flex-wrap gap-2 lg:pt-0">
-                <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px]">
-                  <option value="ALL">Mọi loại phòng</option>
-                  <option value="VIP">VIP</option>
-                  <option value="STANDARD">Standard</option>
-                </select>
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} disabled={isTimeSearchActive}
-                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px] disabled:opacity-50">
-                  <option value="ALL">Mọi trạng thái</option>
-                  <option value="AVAILABLE">Trống</option>
-                  <option value="OCCUPIED">Đang hát</option>
-                  <option value="RESERVED">Đã đặt</option>
-                  <option value="MAINTENANCE">Bảo trì</option>
-                </select>
-                <select value={capacityFilter} onChange={e => setCapacityFilter(e.target.value)}
-                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px]">
-                  <option value="ALL">Mọi sức chứa</option>
-                  <option value="SMALL">Dưới 10 người</option>
-                  <option value="MEDIUM">10 - 20 người</option>
-                  <option value="LARGE">Trên 20 người</option>
-                </select>
-              </div>
+            {/* Status and Capacity Filters */}
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 justify-end">
+              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px]">
+                <option value="ALL">Mọi loại phòng</option>
+                <option value="VIP">VIP</option>
+                <option value="STANDARD">Standard</option>
+              </select>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} disabled={isTimeSearchActive}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px] disabled:opacity-50">
+                <option value="ALL">Mọi trạng thái</option>
+                <option value="AVAILABLE">Trống</option>
+                <option value="OCCUPIED">Đang hát</option>
+                <option value="RESERVED">Đã đặt</option>
+                <option value="MAINTENANCE">Bảo trì</option>
+              </select>
+              <select value={capacityFilter} onChange={e => setCapacityFilter(e.target.value)}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary h-[42px] min-w-[140px]">
+                <option value="ALL">Mọi sức chứa</option>
+                <option value="SMALL">Dưới 10 người</option>
+                <option value="MEDIUM">10 - 20 người</option>
+                <option value="LARGE">Trên 20 người</option>
+              </select>
             </div>
 
             {user.role === 'STAFF' && (
@@ -273,6 +251,47 @@ export default function RoomMap() {
             )}
           </div>
         </div>
+
+        {/* Time Search Bar - Now in its own row with fixed width */}
+        {user.role !== 'STAFF' && (
+          <div className="flex justify-start">
+            <div className="flex flex-col gap-3 bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm w-full max-w-2xl">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="min-w-[220px] flex-1">
+                  <DateTimeSelect
+                    label="Từ giờ"
+                    value={searchStartTime}
+                    onChange={setSearchStartTime}
+                  />
+                </div>
+                <div className="min-w-[220px] flex-1">
+                  <DateTimeSelect
+                    label="Đến giờ"
+                    value={searchEndTime}
+                    onChange={setSearchEndTime}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsTimeSearchActive(true)}
+                  className="flex-1 px-4 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all flex items-center justify-center gap-2"
+                >
+                  <Search size={18} />
+                  Tìm phòng trống
+                </button>
+                {isTimeSearchActive && (
+                  <button
+                    onClick={() => { setIsTimeSearchActive(false); setStatusFilter('ALL'); }}
+                    className="px-4 py-2 text-slate-500 hover:text-slate-700 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all text-sm whitespace-nowrap"
+                  >
+                    Hủy lọc
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Room grid */}
         {loading ? (

@@ -331,11 +331,11 @@ public class RoomServiceImpl implements RoomService
     {
         if (start.isBefore(LocalDateTime.now()))
         {
-            throw new IllegalArgumentException("Thời gian bắt đầu không được ở quá khứ");
+            throw new BusinessException("Thời gian bắt đầu không được ở quá khứ");
         }
         if (end.isBefore(start.plusMinutes(30)))
         {
-            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu ít nhất 30 phút");
+            throw new BusinessException("Thời gian kết thúc phải sau thời gian bắt đầu ít nhất 30 phút");
         }
 
         Page<Room> roomPage = roomRepository.findAvailableRooms(start, end, pageable);
