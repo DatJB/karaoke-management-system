@@ -70,7 +70,7 @@ export default function RoomDetailModal({
         customerId: selectedCustomerId,
         roomIds: [currentRoom.id],
         reservationTime: bookingTime.length === 16 ? `${bookingTime}:00` : bookingTime,
-        expectedCheckoutTime: checkoutTime.length === 16 ? `${checkoutTime}:00` : checkoutTime, // Dự kiến 3 giờ
+        expectedCheckoutTime: checkoutTime.length === 16 ? `${checkoutTime}:00` : checkoutTime, // 3h
         checkInImmediately: bookingAction === 'CHECKIN',
         note: bookingNote
       }
@@ -253,7 +253,7 @@ export default function RoomDetailModal({
       <div className="absolute inset-0" onClick={handleFullClose} />
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 relative z-10 flex flex-col max-h-[90vh]">
 
-        {/* ── Step 1: Select customer ── */}
+        {/* Select customer */}
         {bookingAction && bookingStep === 1 ? (
           <>
             <div className="flex items-center gap-3 p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
@@ -264,15 +264,15 @@ export default function RoomDetailModal({
             </div>
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 shrink-0 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <DateTimeSelect 
-                  label={bookingAction === 'RESERVE' ? "Thời gian đặt trước" : "Thời gian nhận phòng"} 
-                  value={bookingTime} 
-                  onChange={setBookingTime} 
+                <DateTimeSelect
+                  label={bookingAction === 'RESERVE' ? "Thời gian đặt trước" : "Thời gian nhận phòng"}
+                  value={bookingTime}
+                  onChange={setBookingTime}
                 />
-                <DateTimeSelect 
-                  label="Trả phòng dự kiến" 
-                  value={checkoutTime} 
-                  onChange={setCheckoutTime} 
+                <DateTimeSelect
+                  label="Trả phòng dự kiến"
+                  value={checkoutTime}
+                  onChange={setCheckoutTime}
                 />
               </div>
               <div className="relative">
@@ -316,9 +316,7 @@ export default function RoomDetailModal({
                   </div>
                 </div>
               ))}
-              <button className="w-full mt-4 p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 font-medium hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-colors flex items-center justify-center gap-2">
-                + Thêm khách hàng mới
-              </button>
+
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 shrink-0">
               <button
@@ -344,7 +342,7 @@ export default function RoomDetailModal({
             </div>
           </>
 
-          /* ── Step 2: Select staff ── */
+          /*  Step 2: Select staff  */
         ) : bookingAction && bookingStep === 2 ? (
           <>
             <div className="flex items-center gap-3 p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
@@ -380,7 +378,7 @@ export default function RoomDetailModal({
                           </div>
                         </div>
                         {staff.endTime ? (
-                          <button 
+                          <button
                             onClick={() => setAssignedStaff(prev => prev.map(s => s.id === staff.id ? { ...s, endTime: null } : s))}
                             className="p-1.5 px-3 text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 border border-green-200 dark:border-green-800 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-sm"
                             title="Thêm lại vào phòng"
@@ -388,7 +386,7 @@ export default function RoomDetailModal({
                             <Plus size={14} /> Thêm lại
                           </button>
                         ) : (
-                          <button 
+                          <button
                             onClick={() => {
                               if (staff.startTime) {
                                 setAssignedStaff(prev => prev.map(s => s.id === staff.id ? { ...s, endTime: new Date().toISOString() } : s))
@@ -435,10 +433,10 @@ export default function RoomDetailModal({
                           {emp.status === 'AVAILABLE' ? 'SẴN SÀNG' : emp.status === 'BUSY' ? 'ĐANG BẬN' : 'NGHỈ PHÉP'}
                         </span>
                       </div>
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 text-primary bg-slate-50 border-slate-300 rounded focus:ring-primary dark:bg-slate-900 dark:border-slate-600 cursor-pointer" 
-                        value={emp.id} 
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 text-primary bg-slate-50 border-slate-300 rounded focus:ring-primary dark:bg-slate-900 dark:border-slate-600 cursor-pointer"
+                        value={emp.id}
                         checked={isAssigned}
                         onChange={(e) => {
                           if (e.target.checked) {
@@ -459,15 +457,15 @@ export default function RoomDetailModal({
                   try {
                     setSaving(true);
                     const newActiveIds = assignedStaff.filter(s => !s.endTime).map(s => s.id);
-                    
+
                     const toAdd = newActiveIds.filter(id => !initialActiveStaffIds.includes(id));
                     const toRemove = initialActiveStaffIds.filter(id => !newActiveIds.includes(id));
-                    
+
                     const promises = [
                       ...toAdd.map(id => assignEmployeeToRoom(currentRoom.id, id)),
                       ...toRemove.map(id => removeEmployeeFromRoom(currentRoom.id, id))
                     ];
-                    
+
                     await Promise.all(promises);
                     toast.success('Đã cập nhật nhân viên phụ trách phòng thành công!');
                     onSuccess?.();
@@ -492,7 +490,7 @@ export default function RoomDetailModal({
             </div>
           </>
 
-          /* ── View order ── */
+          /*  View order  */
         ) : orderAction === 'VIEW' ? (
           <>
             <div className="flex items-center gap-3 p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
@@ -534,7 +532,7 @@ export default function RoomDetailModal({
             </div>
           </>
 
-          /* ── Add order ── */
+          /* Add order */
         ) : orderAction === 'ADD' ? (
           <>
             <div className="flex items-center gap-3 p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
@@ -563,7 +561,7 @@ export default function RoomDetailModal({
                     </div>
                     <div className="flex items-center gap-3">
                       <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, qty - 1) }))} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
-                      <input 
+                      <input
                         type="number"
                         min="0"
                         value={qty}
@@ -588,7 +586,7 @@ export default function RoomDetailModal({
             </div>
           </>
 
-          /* ── Room detail (default) ── */
+          /*  Room detail */
         ) : (
           <>
             <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 relative z-20 shrink-0">
@@ -716,7 +714,7 @@ export default function RoomDetailModal({
                 )
               )}
               {currentRoom.status === 'RESERVED' && user.role !== 'STAFF' && (
-                <button 
+                <button
                   onClick={handleCheckIn}
                   className="px-6 py-2 flex-1 font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors shadow-lg shadow-orange-500/30"
                 >

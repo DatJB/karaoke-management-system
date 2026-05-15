@@ -138,7 +138,7 @@ export default function Invoices() {
         applyDiscount(selectedInvoiceDetail.invoiceId, 0),
         applyDirectDiscount(selectedInvoiceDetail.invoiceId, 0)
       ]);
-      
+
       // Refresh detail
       const updated = await getInvoiceDetail(selectedInvoiceDetail.invoiceId);
       setSelectedInvoiceDetail(updated);
@@ -153,7 +153,7 @@ export default function Invoices() {
   const handleFeedbackSubmit = async (data) => {
     try {
       await submitFeedback(data);
-      toast.success('Cảm ơn bạn đã gửi đánh giá!');
+      toast.success('Đã lưu đánh giá thành công!');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu đánh giá');
       throw error;
@@ -244,8 +244,8 @@ export default function Invoices() {
               key={invoice.invoiceId}
               onClick={() => handleSelectInvoice(invoice)}
               className={`w-full p-4 rounded-3xl transition-all border-2 flex flex-col text-left group relative hover:scale-[1.02] ${selectedInvoice?.invoiceId === invoice.invoiceId
-                  ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
-                  : 'border-transparent bg-slate-50/50 dark:bg-slate-800/20 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
+                ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
+                : 'border-transparent bg-slate-50/50 dark:bg-slate-800/20 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
                 }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -479,7 +479,7 @@ export default function Invoices() {
                     <span>Tiền dịch vụ:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(selectedInvoiceDetail.totalServicePrice)}đ</span>
                   </div>
-                  
+
                   {/* Calculation context */}
                   {(() => {
                     const subtotal = (selectedInvoiceDetail.totalRoomPrice || 0) + (selectedInvoiceDetail.totalServicePrice || 0);
@@ -502,7 +502,7 @@ export default function Invoices() {
                             <span className="font-bold text-red-500">-{formatCurrency(directDiscountAmount)}đ</span>
                           </div>
                         )}
-                        
+
                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
                           <div className="flex justify-between items-center text-slate-500 font-medium text-xs">
                             <span>Giảm giá (%):</span>

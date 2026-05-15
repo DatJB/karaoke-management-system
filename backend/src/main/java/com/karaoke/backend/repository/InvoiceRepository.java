@@ -20,8 +20,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
     BigDecimal sumTodayRevenue();
     List<Invoice> findTop5ByStatusOrderByPaidAtDesc(Invoice.InvoiceStatus status);
 
-    @Query("SELECT new com.karaoke.backend.dto.response.DashboardResponse$WeeklyRevenue(" +
-            "DAYNAME(i.paidAt), SUM(i.totalPrice)) " +
+    @Query("SELECT " +
+            "DAYNAME(i.paidAt), SUM(i.totalPrice) " +
             "FROM Invoice i WHERE i.status = 'PAID' " +
             "AND i.paidAt >= :startOfWeek " +
             "GROUP BY DAYNAME(i.paidAt), DAYOFWEEK(i.paidAt) " +
@@ -51,4 +51,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable
     );
+    @Query("SELECT MONTH(i.paidAt) as month, SUM(i.totalPrice) as revenue, COUNT(i.id) as count " +
+            "FROM Invoice i WHERE i.status = 'PAID' AND YEAR(i.paidAt) = :year " +
+            "GROUP BY MONTH(i.paidAt) " +
+            "ORDER BY MONTH(i.paidAt)")
+    List<Object[]> getMonthlyRevenue(@Param("year") int year);
+
+    @Query("SELECT COUNT(DISTINCT b.customer.id) FROM Booking b WHERE b.status = 'CHECKED_OUT' AND YEAR(b.reservationTime) = :year")
+    long countCustomersByYear(@Param("year") int year);
 }

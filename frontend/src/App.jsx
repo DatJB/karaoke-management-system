@@ -20,6 +20,7 @@ import Products from './pages/Products'
 import Accounts from './pages/Accounts'
 import RoomPricing from './pages/RoomPricing'
 import Profile from './pages/Profile'
+import Revenue from './pages/Revenue'
 
 const RequireRole = ({ allowedRoles, children }) => {
   const { user } = useAuth();
@@ -65,6 +66,7 @@ function App() {
         <Route element={<RequireRole allowedRoles={MANAGERS}><Payroll /></RequireRole>} path="/payroll" />
         <Route element={<RequireRole allowedRoles={MANAGERS}><PayrollList /></RequireRole>} path="/payroll-list" />
         <Route element={<RequireRole allowedRoles={MANAGERS}><BonusPenaltyManagement /></RequireRole>} path="/bonus-penalty" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><Revenue /></RequireRole>} path="/revenue" />
         <Route element={<RequireRole allowedRoles={MANAGERS}><StaffAssignment /></RequireRole>} path="/staff-assignment" />
         <Route element={<RequireRole allowedRoles={MANAGERS}><Accounts /></RequireRole>} path="/accounts" />
 

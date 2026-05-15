@@ -237,27 +237,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6 rounded-3xl">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Lịch trực tuần này</h3>
-          <div className="space-y-3 relative">
-            <div className="absolute left-[11px] top-4 bottom-4 w-0.5 bg-slate-200 dark:bg-slate-700/50"></div>
-            {[{day: 'Thứ Hai', time: '18:00 - 23:00'}, {day: 'Thứ Tư', time: '18:00 - 23:00'}, {day: 'Thứ Sáu', time: '18:00 - 23:00'}].map((shift, i) => (
-              <div key={i} className="flex relative items-center gap-4 pl-8">
-                <div className="absolute left-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 border-[3px] border-white dark:border-slate-900 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-primary"></div>
-                </div>
-                <div className="flex-1 flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50 rounded-xl hover:border-primary/30 transition-colors">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{shift.day}</span>
-                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-                    {shift.time}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-6">
         <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Hoạt động gần nhất</h3>
           <div className="space-y-4">

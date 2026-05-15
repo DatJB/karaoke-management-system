@@ -22,6 +22,8 @@ import {
   FileText,
   Wallet,
   TrendingUp,
+  BarChart3,
+  Award,
   DollarSign,
   ClipboardList,
   ShieldCheck
@@ -55,11 +57,12 @@ export default function DashboardLayout() {
       { path: '/staff-assignment', icon: ClipboardList, label: 'Phân công NV', roles: ['ADMIN', 'MANAGER'] },
       { path: '/payroll', icon: Calculator, label: 'Tính lương', roles: ['ADMIN', 'MANAGER'] },
       { path: '/payroll-list', icon: FileText, label: 'DS bảng lương', roles: ['ADMIN', 'MANAGER'] },
-      { path: '/bonus-penalty', icon: TrendingUp, label: 'Thưởng & Phạt', roles: ['ADMIN', 'MANAGER'] },
+      { path: '/revenue', icon: BarChart3, label: 'Doanh thu', roles: ['ADMIN', 'MANAGER'] },
+      { path: '/bonus-penalty', icon: Award, label: 'Thưởng & Phạt', roles: ['ADMIN', 'MANAGER'] },
       { path: '/ai-feedback', icon: Sparkles, label: 'AI Phân tích', roles: ['ADMIN', 'MANAGER'] },
       { path: '/shifts', icon: CalendarDays, label: 'Ca làm việc', roles: ['RECEPTIONIST', 'STAFF'] },
       { path: '/my-payroll', icon: Wallet, label: 'Lương của tôi', roles: ['RECEPTIONIST', 'STAFF'] },
-      { path: '/my-bonus-penalty', icon: TrendingUp, label: 'Thưởng & Phạt', roles: ['RECEPTIONIST', 'STAFF'] },
+      { path: '/my-bonus-penalty', icon: Award, label: 'Thưởng & Phạt', roles: ['RECEPTIONIST', 'STAFF'] },
     ]
     return items.filter(item => item.roles.includes(user.role))
   }
