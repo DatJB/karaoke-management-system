@@ -1,0 +1,9 @@
+$kind: http-request
+name: Employees/{id}
+url: localhost:8081/api/v1/employees/9
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYwMDAyNywiZXhwIjoxNzc2Njg2NDI3fQ.WF0PPaq7p7sYWxyfiEpep0LNi0frbse-Hao7eVZYvFw
+order: 4494526184122481

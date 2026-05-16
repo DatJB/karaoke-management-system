@@ -1,0 +1,14 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: kara-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: kara_db
+      MYSQL_ROOT_PASSWORD: batu2005
+      MYSQL_USER: kara_user
+      MYSQL_PASSWORD: batu2005
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql

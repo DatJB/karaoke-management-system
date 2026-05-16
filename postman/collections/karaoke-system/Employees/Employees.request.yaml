@@ -1,0 +1,9 @@
+$kind: http-request
+name: Employees
+url: localhost:8081/api/v1/employees
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImVtcGxveWVlSWQiOjEsImlhdCI6MTc3NjYwMDAyNywiZXhwIjoxNzc2Njg2NDI3fQ.WF0PPaq7p7sYWxyfiEpep0LNi0frbse-Hao7eVZYvFw
+order: 1776602601889
