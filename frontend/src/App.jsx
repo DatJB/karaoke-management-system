@@ -21,6 +21,7 @@ import Accounts from './pages/Accounts'
 import RoomPricing from './pages/RoomPricing'
 import Profile from './pages/Profile'
 import Revenue from './pages/Revenue'
+import InvoiceSecurity from './pages/InvoiceSecurity'
 
 const RequireRole = ({ allowedRoles, children }) => {
   const { user } = useAuth();
@@ -73,6 +74,7 @@ function App() {
         {/* ADMIN, MANAGER, RECEPTIONIST */}
         <Route element={<RequireRole allowedRoles={NO_STAFF}><Customers /></RequireRole>} path="/customers" />
         <Route element={<RequireRole allowedRoles={NO_STAFF}><Invoices /></RequireRole>} path="/invoices" />
+        <Route element={<RequireRole allowedRoles={MANAGERS}><InvoiceSecurity /></RequireRole>} path="/invoices/security" />
 
         {/* ADMIN, MANAGER, STAFF */}
         <Route element={<RequireRole allowedRoles={NO_RECEPTIONIST}><Products /></RequireRole>} path="/products" />
