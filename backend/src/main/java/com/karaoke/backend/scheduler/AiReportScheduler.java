@@ -2,7 +2,7 @@ package com.karaoke.backend.scheduler;
 
 import com.karaoke.backend.entity.Feedback;
 import com.karaoke.backend.repository.FeedbackRepository;
-import com.karaoke.backend.service.AiIntegrationService;
+import com.karaoke.backend.service.ai.AiIntegrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

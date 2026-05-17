@@ -1,6 +1,7 @@
 package com.karaoke.backend.repository;
 
 import com.karaoke.backend.entity.BookingRoomEmployee;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -28,4 +29,15 @@ public interface BookingRoomEmployeeRepository extends JpaRepository<BookingRoom
     List<Object[]> aggregateServiceHours(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     List<BookingRoomEmployee> findByEmployeeIdAndBookingRoomCheckoutTimeBetween(Integer employeeId, LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT e.name, COUNT(s.id) " +
+            "FROM BookingRoomEmployee s JOIN s.employee e " +
+            "WHERE s.bookingRoom.booking.createdAt BETWEEN :start AND :end " +
+            "GROUP BY e.id, e.name " +
+            "ORDER BY COUNT(s.id) DESC")
+    List<Object[]> findTopPerformingEmployees(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            Pageable pageable
+    );
 }

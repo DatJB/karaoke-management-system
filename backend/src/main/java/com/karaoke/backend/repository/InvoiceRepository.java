@@ -28,6 +28,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
             "ORDER BY DAYOFWEEK(i.paidAt)")
     List<DashboardResponse.WeeklyRevenue> getWeeklyRevenue(@Param("startOfWeek") LocalDateTime startOfWeek);
 
+    @Query("SELECT " +
+            "DAYNAME(i.paidAt), SUM(i.totalPrice) " +
+            "FROM Invoice i WHERE i.status = 'PAID' " +
+            "AND i.paidAt >= :startOfWeek " +
+            "GROUP BY DAYNAME(i.paidAt), DAYOFWEEK(i.paidAt) " +
+            "ORDER BY DAYOFWEEK(i.paidAt)")
+    List<Object[]> getWeeklyRevenueRawData(@Param("startOfWeek") LocalDateTime startOfWeek);
+
     @Query("SELECT SUM(i.totalPrice) FROM Invoice i WHERE i.status = 'PAID' " +
             "AND i.paidAt BETWEEN :start AND :end")
     BigDecimal sumRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
@@ -59,4 +67,53 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
 
     @Query("SELECT COUNT(DISTINCT b.customer.id) FROM Booking b WHERE b.status = 'CHECKED_OUT' AND YEAR(b.reservationTime) = :year")
     long countCustomersByYear(@Param("year") int year);
+
+    @Query("SELECT SUM(i.totalPrice) FROM Invoice i WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID'")
+    BigDecimal calculateTotalRevenue(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT SUM(i.roomPrice) FROM Invoice i WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID'")
+    BigDecimal calculateRoomRevenue(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT SUM(i.servicePrice) FROM Invoice i WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID'")
+    BigDecimal calculateServiceRevenue(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT HOUR(i.createdAt) as hr, COUNT(i.id) as cnt " +
+            "FROM Invoice i WHERE i.createdAt BETWEEN :start AND :end " +
+            "GROUP BY HOUR(i.createdAt) " +
+            "ORDER BY cnt DESC")
+    List<Object[]> findPeakHours(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT r.name, COUNT(i.id) " +
+            "FROM Invoice i " +
+            "JOIN i.roomDetails rd " +
+            "JOIN rd.bookingRoom.room r " +
+            "WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID' " +
+            "GROUP BY r.name " +
+            "ORDER BY COUNT(i.id) DESC")
+    List<Object[]> findRoomUtilization(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT r.name, SUM(rd.totalPrice) " +
+            "FROM Invoice i " +
+            "JOIN i.roomDetails rd " +
+            "JOIN rd.bookingRoom.room r " +
+            "WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID' " +
+            "GROUP BY r.name " +
+            "ORDER BY SUM(rd.totalPrice) DESC")
+    List<Object[]> findRoomRevenueRanking(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT c.name, c.phone, SUM(i.totalPrice) " +
+            "FROM Invoice i " +
+            "JOIN i.booking.customer c " +
+            "WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID' " +
+            "GROUP BY c.id, c.name, c.phone " +
+            "ORDER BY SUM(i.totalPrice) DESC")
+    List<Object[]> findTopSpenders(LocalDateTime start, LocalDateTime end, org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT c.name, c.phone, COUNT(i.id) " +
+            "FROM Invoice i " +
+            "JOIN i.booking.customer c " +
+            "WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'PAID' " +
+            "GROUP BY c.id, c.name, c.phone " +
+            "ORDER BY COUNT(i.id) DESC")
+    List<Object[]> findMostFrequentCustomers(LocalDateTime start, LocalDateTime end, org.springframework.data.domain.Pageable pageable);
 }

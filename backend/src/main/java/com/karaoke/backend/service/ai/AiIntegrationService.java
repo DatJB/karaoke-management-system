@@ -1,4 +1,4 @@
-package com.karaoke.backend.service;
+package com.karaoke.backend.service.ai;
 
 import java.time.LocalDate;
 import java.util.List;

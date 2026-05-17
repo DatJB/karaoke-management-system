@@ -9,6 +9,9 @@ import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
@@ -24,4 +27,10 @@ public interface PayrollRepository extends JpaRepository<Payroll, Integer> {
     @Query("UPDATE Payroll p SET p.status = :newStatus WHERE p.payrollPeriod.id = :periodId")
     void bulkUpdateStatusByPeriodId(@Param("periodId") Integer periodId,
                                     @Param("newStatus") Payroll.PayrollStatus newStatus);
+
+    @Query("SELECT SUM(p.totalSalary) FROM Payroll p WHERE p.createdAt BETWEEN :start AND :end")
+    BigDecimal calculateTotalPayroll(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

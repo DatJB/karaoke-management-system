@@ -43,9 +43,18 @@ public class DashboardServiceImpl implements DashboardService {
         long activeRooms = roomRepository.countByStatus(Room.RoomStatus.OCCUPIED);
         long todayCustomers = customerRepository.countByCreatedAtAfter(startOfDay);
 
-        List<DashboardResponse.WeeklyRevenue> weeklyData = invoiceRepository.getWeeklyRevenue(startOfWeek);
+//        List<DashboardResponse.WeeklyRevenue> weeklyData = invoiceRepository.getWeeklyRevenue(startOfWeek);
 
         List<DashboardResponse.RecentActivity> activities = new ArrayList<>();
+
+        List<Object[]> rawWeeklyData = invoiceRepository.getWeeklyRevenueRawData(startOfWeek);
+
+        List<DashboardResponse.WeeklyRevenue> weeklyData = rawWeeklyData.stream()
+                .map(row -> DashboardResponse.WeeklyRevenue.builder()
+                        .dayOfWeek((String) row[0])
+                        .revenue(BigDecimal.valueOf(row[1] != null ? ((BigDecimal) row[1]).doubleValue() : 0D)) // Cột 2 là Tổng tiền
+                        .build())
+                .collect(Collectors.toList());
 
         activities.addAll(bookingRepository.findTop5ByOrderByCreatedAtDesc()
                 .stream()

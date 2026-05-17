@@ -115,7 +115,9 @@ public class AiDashboardServiceImpl implements AiDashboardService
 
         List<String> displayTags = feedback.getExtractedTags() == null
                 ? List.of()
-                : feedback.getExtractedTags();
+                : feedback.getExtractedTags().stream()
+                .map(FeedbackTag::getExtractedTag)
+                .collect(Collectors.toList());
 
         return LiveFeedback.builder()
                 .id(feedback.getId())

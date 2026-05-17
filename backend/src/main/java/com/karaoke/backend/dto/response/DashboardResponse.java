@@ -25,6 +25,7 @@ public class DashboardResponse {
 
     @Data
     @AllArgsConstructor
+    @Builder
     public static class WeeklyRevenue {
         private String dayOfWeek;
         private BigDecimal revenue;

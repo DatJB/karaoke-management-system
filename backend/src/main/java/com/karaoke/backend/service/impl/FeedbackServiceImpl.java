@@ -8,6 +8,7 @@ import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.FeedbackRepository;
 import com.karaoke.backend.repository.InvoiceRepository;
 import com.karaoke.backend.service.FeedbackService;
+import com.karaoke.backend.service.ai.impl.AiIntegrationServiceImpl;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

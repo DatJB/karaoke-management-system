@@ -1,7 +1,7 @@
 package com.karaoke.backend.controller;
 
 import com.karaoke.backend.dto.response.RevenueResponse;
-import com.karaoke.backend.service.StatisticService;
+import com.karaoke.backend.service.ai.RevenueService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,7 +17,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class StatisticController {
 
-    private final StatisticService statisticService;
+    private final RevenueService statisticService;
 
     @GetMapping("/revenue")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface CustomerRepository extends JpaRepository<Customer, Integer> {
@@ -28,4 +29,13 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     boolean existsByIdentity(String identity);
 
+    @Query("SELECT c.name, c.phone, MAX(i.createdAt) " +
+            "FROM Customer c " +
+            "JOIN c.bookings b " +
+            "JOIN b.invoice i " +
+            "WHERE i.status = 'PAID' " +
+            "GROUP BY c.id, c.name, c.phone " +
+            "HAVING MAX(i.createdAt) < :cutoffDate " +
+            "ORDER BY MAX(i.createdAt) DESC")
+    List<Object[]> findSleepingCustomers(LocalDateTime cutoffDate, org.springframework.data.domain.Pageable pageable);
 }
