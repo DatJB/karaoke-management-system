@@ -47,8 +47,25 @@ public class KeyManagementServiceImpl implements KeyManagementService
             throw new RuntimeException("Chưa đủ ngưỡng đồng thuận! Cần ít nhất 3 mảnh ghép và 1 mảnh P.");
         }
 
+        BigInteger n = null;
+        for (ShareDTO s : shares) {
+            if (s.getX() == 0 && s.getY() != null && s.getY().contains(":")) {
+                String[] parts = s.getY().split(":");
+                s.setY(parts[0]);
+                n = new BigInteger(parts[1], 16);
+            }
+        }
+
         BigInteger restoredInt = ShamirAlgorithm.combine(shares);
-        PrivateKey restoredKey = KeyConverterUtil.bigIntToPrivateKey(restoredInt);
+
+        PrivateKey restoredKey;
+        if (n != null) {
+            java.security.spec.RSAPrivateKeySpec spec = new java.security.spec.RSAPrivateKeySpec(n, restoredInt);
+            java.security.KeyFactory factory = java.security.KeyFactory.getInstance("RSA");
+            restoredKey = factory.generatePrivate(spec);
+        } else {
+            restoredKey = KeyConverterUtil.bigIntToPrivateKey(restoredInt);
+        }
 
         System.out.println("Khôi phục thành công Private Key!");
         return restoredKey;
@@ -65,8 +82,17 @@ public class KeyManagementServiceImpl implements KeyManagementService
         String pemContent = new String(file.getBytes(), StandardCharsets.UTF_8);
         PrivateKey privateKey = KeyConverterUtil.parsePemString(pemContent);
 
-        BigInteger secretInt = KeyConverterUtil.privateKeyToBigInt(privateKey);
+        java.security.interfaces.RSAPrivateKey rsa = (java.security.interfaces.RSAPrivateKey) privateKey;
+        BigInteger secretInt = rsa.getPrivateExponent();
+        BigInteger n = rsa.getModulus();
+
         List<ShareDTO> shares = ShamirAlgorithm.split(secretInt, 3, 4);
+
+        for (ShareDTO s : shares) {
+            if (s.getX() == 0) {
+                s.setY(s.getY() + ":" + n.toString(16));
+            }
+        }
 
         System.out.println("Đã xử lý file upload và băm thành công 4 mảnh!");
         return shares;

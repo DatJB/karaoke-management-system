@@ -5,6 +5,7 @@ import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
+import java.util.Base64;
 
 public class KeyConverterUtil
 {
@@ -44,5 +45,26 @@ public class KeyConverterUtil
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 
         return keyFactory.generatePrivate(keySpec);
+    }
+
+    public static String exportPrivateKeyToPemString(PrivateKey privateKey)
+    {
+        byte[] encodedKey = privateKey.getEncoded();
+
+        String base64Key = Base64.getEncoder().encodeToString(encodedKey);
+
+        StringBuilder pem = new StringBuilder();
+        pem.append("-----BEGIN PRIVATE KEY-----\n");
+
+        int index = 0;
+        while (index < base64Key.length())
+        {
+            int end = Math.min(index + 64, base64Key.length());
+            pem.append(base64Key.substring(index, end)).append("\n");
+            index += 64;
+        }
+
+        pem.append("-----END PRIVATE KEY-----");
+        return pem.toString();
     }
 }

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck,
   ShieldAlert,
@@ -17,6 +18,8 @@ import {
 import invoiceSecurityApi from '../api/invoiceSecurityApi'
 
 export default function InvoiceSecurity() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(null) // 'keys', 'migrate', 'verify', 'recover'
   const [activeTab, setActiveTab] = useState('verify') // 'verify' or 'recover'
@@ -27,6 +30,16 @@ export default function InvoiceSecurity() {
   const [uploadedFileName, setUploadedFileName] = useState('')
   const [statusMessage, setStatusMessage] = useState(null) // { type: 'success'|'error', text: '' }
 
+  useEffect(() => {
+    if (location.state && location.state.restoredKeyFile) {
+      const file = location.state.restoredKeyFile;
+      // Remove state so it doesn't trigger on reload
+      navigate(location.pathname, { replace: true, state: {} });
+      // Execute recover
+      handleRecover(file);
+    }
+  }, [location.state, navigate, location.pathname]);
+
   // Generate RSA Keys
   const handleGenerateKeys = async () => {
     try {
@@ -34,19 +47,16 @@ export default function InvoiceSecurity() {
       setStatusMessage(null)
       const blob = await invoiceSecurityApi.generateKeys()
 
-      // Create local URL and trigger file download
-      const url = window.URL.createObjectURL(new Blob([blob]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', 'private_key.pem')
-      document.body.appendChild(link)
-      link.click()
-      link.parentNode.removeChild(link)
+      const file = new File([blob], 'private_key.pem', { type: 'application/x-pem-file' })
 
       setStatusMessage({
         type: 'success',
-        text: 'Đã sinh cặp khóa RSA mới thành công! Khóa công khai đã được cài đặt trên Server, file khóa riêng tư "private_key.pem" đã tự động được tải xuống máy của bạn.'
+        text: 'Đã sinh cặp khóa RSA mới thành công! Khóa công khai đã được cài đặt trên Server, đang chuyển hướng sang trang Phân rã khóa...'
       })
+
+      setTimeout(() => {
+        navigate('/security/keys', { state: { generatedKeyFile: file } })
+      }, 1000)
     } catch (error) {
       setStatusMessage({
         type: 'error',
@@ -113,7 +123,12 @@ export default function InvoiceSecurity() {
 
   // Recover Amounts using Private Key
   const handleRecover = async (e) => {
-    const file = e.target.files[0]
+    let file;
+    if (e && e.target && e.target.files) {
+      file = e.target.files[0];
+    } else {
+      file = e; // Treat e as the file itself if passed directly
+    }
     if (!file) return
 
     setUploadedFileName(file.name)
@@ -151,7 +166,9 @@ export default function InvoiceSecurity() {
     } finally {
       setActionLoading(null)
       // Reset file input value to allow uploading same file again
-      e.target.value = ''
+      if (e && e.target && e.target.value !== undefined) {
+        e.target.value = ''
+      }
     }
   }
 

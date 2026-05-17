@@ -22,7 +22,7 @@ import RoomPricing from './pages/RoomPricing'
 import Profile from './pages/Profile'
 import Revenue from './pages/Revenue'
 import InvoiceSecurity from './pages/InvoiceSecurity'
-
+import KeyManagement from './pages/KeyManagement'
 const RequireRole = ({ allowedRoles, children }) => {
   const { user } = useAuth();
 
@@ -75,6 +75,7 @@ function App() {
         <Route element={<RequireRole allowedRoles={NO_STAFF}><Customers /></RequireRole>} path="/customers" />
         <Route element={<RequireRole allowedRoles={NO_STAFF}><Invoices /></RequireRole>} path="/invoices" />
         <Route element={<RequireRole allowedRoles={MANAGERS}><InvoiceSecurity /></RequireRole>} path="/invoices/security" />
+        <Route element={<RequireRole allowedRoles={ADMIN_ONLY}><KeyManagement /></RequireRole>} path="/security/keys" />
 
         {/* ADMIN, MANAGER, STAFF */}
         <Route element={<RequireRole allowedRoles={NO_RECEPTIONIST}><Products /></RequireRole>} path="/products" />

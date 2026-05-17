@@ -3,12 +3,16 @@ package com.karaoke.backend.security.controller;
 import com.karaoke.backend.security.dto.CombineRequestDTO;
 import com.karaoke.backend.security.dto.ShareDTO;
 import com.karaoke.backend.security.service.KeyManagementService;
+import com.karaoke.backend.util.KeyConverterUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.util.List;
 
@@ -57,7 +61,20 @@ public class KeyManagementController
     {
         try {
             PrivateKey key = keyService.restoreMasterKey(request.getShares());
-            return ResponseEntity.ok("Đồng thuận thành công! Đã khôi phục Master Key.");
+
+            String pemContent = KeyConverterUtil.exportPrivateKeyToPemString(key);
+            byte[] fileBytes = pemContent.getBytes(StandardCharsets.UTF_8);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "restored_master_key.pem");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentLength(fileBytes.length)
+                    .body(fileBytes);
+
+//            return ResponseEntity.ok("Đồng thuận thành công! Đã khôi phục Master Key.");
         } catch (Exception e)
         {
             return ResponseEntity.badRequest().body("Khôi phục thất bại: " + e.getMessage());
