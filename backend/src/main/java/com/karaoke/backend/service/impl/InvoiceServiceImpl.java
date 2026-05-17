@@ -284,6 +284,59 @@ public class InvoiceServiceImpl implements InvoiceService
         invoice.setStatus(Invoice.InvoiceStatus.PAID);
         invoice.setPaidAt(now);
 
+        // --- CRYPTOGRAPHIC INTEGRITY & SECURITY ---
+        // 1. Calculate Chaining Hash (SHA-256)
+        String previousHash = "secure-karaoke-genesis-hash-value-00000000000000000";
+        List<Invoice> lastPaid = invoiceRepository.findTop5ByStatusOrderByPaidAtDesc(Invoice.InvoiceStatus.PAID);
+        if (lastPaid != null && !lastPaid.isEmpty()) {
+            for (Invoice prev : lastPaid) {
+                if (!prev.getId().equals(invoice.getId()) && prev.getHashValue() != null) {
+                    previousHash = prev.getHashValue();
+                    break;
+                }
+            }
+        }
+
+        String dataStr = String.format("%d|%d|%s|%s|%s|%s|%s",
+                invoice.getId(),
+                invoice.getBooking().getId(),
+                invoice.getRoomPrice() != null ? invoice.getRoomPrice().toPlainString() : "0.00",
+                invoice.getServicePrice() != null ? invoice.getServicePrice().toPlainString() : "0.00",
+                invoice.getDiscount() != null ? invoice.getDiscount().toPlainString() : "0.00",
+                invoice.getTotalPrice() != null ? invoice.getTotalPrice().toPlainString() : "0.00",
+                invoice.getPaidAt() != null ? invoice.getPaidAt().toString() : ""
+        );
+        String currentHash = com.karaoke.backend.util.CryptoUtils.sha256(dataStr + previousHash);
+        invoice.setHashValue(currentHash);
+
+        // 2. RSA Encryption of Total Amount
+        try {
+            java.io.File keyFile = new java.io.File("keys/public_key.pem");
+            java.security.PublicKey publicKey;
+            if (!keyFile.exists()) {
+                // Self-bootstrap key generation if public_key.pem doesn't exist
+                java.security.KeyPair kp = com.karaoke.backend.util.CryptoUtils.generateRsaKeyPair();
+                String pubPem = com.karaoke.backend.util.CryptoUtils.getPublicKeyPem(kp.getPublic());
+                String privPem = com.karaoke.backend.util.CryptoUtils.getPrivateKeyPem(kp.getPrivate());
+                keyFile.getParentFile().mkdirs();
+                java.nio.file.Files.writeString(keyFile.toPath(), pubPem, java.nio.charset.StandardCharsets.UTF_8);
+
+                java.io.File privFile = new java.io.File("keys/private_key_backup.pem");
+                java.nio.file.Files.writeString(privFile.toPath(), privPem, java.nio.charset.StandardCharsets.UTF_8);
+
+                publicKey = kp.getPublic();
+            } else {
+                String pubPem = java.nio.file.Files.readString(keyFile.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+                publicKey = com.karaoke.backend.util.CryptoUtils.parsePublicKeyPem(pubPem);
+            }
+
+            String encryptedAmt = com.karaoke.backend.util.CryptoUtils.rsaEncrypt(invoice.getTotalPrice().toPlainString(), publicKey);
+            invoice.setEncryptedAmount(encryptedAmt);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi mã hóa bảo mật số tiền hóa đơn bằng RSA: " + e.getMessage(), e);
+        }
+        // ------------------------------------------
+
         invoiceRepository.save(invoice);
     }
 

@@ -48,6 +48,12 @@ public class Invoice {
     @Enumerated(EnumType.STRING)
     private InvoiceStatus status = InvoiceStatus.UNPAID;
 
+    @Column(name = "hash_value")
+    private String hashValue;
+
+    @Column(name = "encrypted_amount", length = 1000)
+    private String encryptedAmount;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null)
