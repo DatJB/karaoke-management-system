@@ -18,18 +18,11 @@ export function AuthProvider({ children }) {
     };
   });
 
-  const login = async (username, password) => {
-    const res = await api.post("/auth/login", {
-      username,
-      password,
-    });
-
-    const data = res.data;
-
+  const saveUser = (data, fallbackName) => {
     const newUser = {
       token: data.token,
       role: data.role,
-      name: data.name || username,
+      name: data.name || fallbackName,
       avatarUrl: data.avatarUrl || "",
     };
 
@@ -41,6 +34,30 @@ export function AuthProvider({ children }) {
     setUser(newUser);
 
     return newUser;
+  };
+
+  const login = async (username, password) => {
+    const res = await api.post("/auth/login", {
+      username,
+      password,
+    });
+
+    const data = res.data;
+
+    if (data.requires2FA === true || data.requires2FA === "true") {
+      return data;
+    }
+
+    return saveUser(data, username);
+  };
+
+  const verify2faLogin = async (username, code) => {
+    const res = await api.post("/auth/2fa/verify-login", {
+      username,
+      code,
+    });
+
+    return saveUser(res.data, username);
   };
 
   const logout = () => {
@@ -63,7 +80,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, verify2faLogin, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

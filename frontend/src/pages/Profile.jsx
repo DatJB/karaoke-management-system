@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
-import { User, Phone, Briefcase, ShieldCheck, Banknote, Clock, Camera, X, ZoomIn, ZoomOut } from 'lucide-react'
-import { getProfile, updatePassword, updateAvatar } from '../api/profile'
+import { User, Phone, Briefcase, ShieldCheck, Clock, Camera, X, ZoomIn, ZoomOut, Smartphone, KeyRound } from 'lucide-react'
+import { getProfile, updatePassword, updateAvatar, setupTwoFactor, enableTwoFactor } from '../api/profile'
 import toast from 'react-hot-toast'
 import Cropper from 'react-easy-crop'
+import { QRCodeCanvas } from 'qrcode.react'
 
 const createImage = (url) =>
   new Promise((resolve, reject) => {
@@ -54,6 +55,9 @@ export default function Profile() {
 
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
   const [pwdError, setPwdError] = useState('')
+  const [twoFactorUrl, setTwoFactorUrl] = useState('')
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false)
 
   const [avatarSrc, setAvatarSrc] = useState(null)
   const fileInputRef = useRef(null)
@@ -143,6 +147,40 @@ export default function Profile() {
       setPwdForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
     } catch (error) {
       setPwdError(error.response?.data || 'Đổi mật khẩu thất bại')
+    }
+  }
+
+  const handleSetupTwoFactor = async () => {
+    try {
+      setTwoFactorLoading(true)
+      const data = await setupTwoFactor()
+      setTwoFactorUrl(data.otpAuthUrl)
+      setTwoFactorCode('')
+      toast.success('Đã tạo mã QR xác thực 2 lớp')
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Không thể tạo mã QR 2FA')
+    } finally {
+      setTwoFactorLoading(false)
+    }
+  }
+
+  const handleEnableTwoFactor = async () => {
+    if (!twoFactorCode.match(/^\d{6}$/)) {
+      toast.error('Vui lòng nhập mã xác thực gồm 6 chữ số.')
+      return
+    }
+
+    try {
+      setTwoFactorLoading(true)
+      await enableTwoFactor(twoFactorCode)
+      setProfileData((prev) => prev ? { ...prev, twoFactorEnabled: true, is2faEnabled: true } : prev)
+      setTwoFactorUrl('')
+      setTwoFactorCode('')
+      toast.success('Đã bật xác thực 2 lớp')
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Mã xác thực không chính xác.')
+    } finally {
+      setTwoFactorLoading(false)
     }
   }
 
@@ -238,6 +276,93 @@ export default function Profile() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6 rounded-3xl">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-primary/10 rounded-2xl text-primary">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Xác thực 2 lớp</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+                  Bảo vệ tài khoản bằng mã 6 số trên Google Authenticator (Mã thay đổi sau mỗi 30s).
+                </p>
+              </div>
+            </div>
+
+            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold w-fit ${
+              profileData?.twoFactorEnabled || profileData?.is2faEnabled
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+            }`}>
+              <Smartphone size={14} />
+              {profileData?.twoFactorEnabled || profileData?.is2faEnabled ? 'Đang bật' : 'Chưa bật'}
+            </span>
+          </div>
+
+          {twoFactorUrl ? (
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 items-start">
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-center">
+                <QRCodeCanvas value={twoFactorUrl} size={180} />
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 text-sm text-slate-600 dark:text-slate-300">
+                  (1) Mở Google Authenticator. (2) Quét mã QR. (3) Nhập mã 6 số hiện trên điện thoại.
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-slate-700 dark:text-slate-300">Mã xác nhận</label>
+                  <div className="relative max-w-xs">
+                    <KeyRound className="absolute left-3.5 top-3.5 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:border-primary dark:focus:border-primary text-slate-900 dark:text-white transition-all shadow-sm tracking-[0.35em] font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={handleEnableTwoFactor}
+                    disabled={twoFactorLoading}
+                    className="px-5 py-2.5 rounded-xl font-medium text-white bg-primary hover:bg-primary-dark transition-colors shadow-md shadow-primary/20 disabled:opacity-60"
+                  >
+                    Xác nhận bật 2FA
+                  </button>
+                  <button
+                    onClick={() => { setTwoFactorUrl(''); setTwoFactorCode('') }}
+                    className="px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-5 border-t border-slate-200 dark:border-slate-800">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {profileData?.twoFactorEnabled || profileData?.is2faEnabled
+                  ? 'Tài khoản này sẽ yêu cầu mã 6 số sau khi nhập đúng mật khẩu.'
+                  : 'Bật tính năng này để tránh việc kẻ gian đăng nhập vào khi chỉ biết mật khẩu.'}
+              </p>
+              <button
+                onClick={handleSetupTwoFactor}
+                disabled={twoFactorLoading}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-primary hover:bg-primary-dark transition-colors shadow-md shadow-primary/20 disabled:opacity-60"
+              >
+                <ShieldCheck size={18} />
+                {profileData?.twoFactorEnabled || profileData?.is2faEnabled ? 'Tạo lại mã QR' : 'Bật 2FA'}
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="glass-card border-none bg-white/80 dark:bg-slate-900/80 p-6 rounded-3xl">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Hoạt động gần nhất</h3>
           <div className="space-y-4">

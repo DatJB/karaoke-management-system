@@ -23,3 +23,13 @@ export const updateAvatar = async (formData) => {
     });
     return response.data;
 };
+
+export const setupTwoFactor = async () => {
+    const response = await api.post("/auth/2fa/setup");
+    return response.data;
+};
+
+export const enableTwoFactor = async (code) => {
+    const response = await api.post("/auth/2fa/enable", { code });
+    return response.data;
+};

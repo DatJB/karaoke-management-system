@@ -24,7 +24,7 @@ public class BookingRoomEmployee {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @Column(name = "start_time", nullable = false)
+    @Column(name = "start_time", nullable = false, columnDefinition = "DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)")
     private LocalDateTime startTime;
 
     @Column(name = "end_time")
