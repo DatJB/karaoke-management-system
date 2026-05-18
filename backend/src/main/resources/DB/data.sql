@@ -522,3 +522,113 @@ INSERT INTO payroll (payroll_period_id, employee_id, period_start, period_end, t
                                                                                                                                                                                        (2, 4, '2026-03-01', '2026-03-31', 120, 0, 3600000, 0, 50000, 3550000, 'APPROVED');
 
 -- *Lưu ý: Không insert lương Tháng 4. Hãy lên giao diện bấm "Chạy tính lương" để hệ thống tự sinh ra!*
+-----------------------------------------------------
+-----------------------------------------------------
+-----------------------------------------------------
+
+-- =========================================================================
+-- CA LÀM VIỆC & LỊCH TRỰC (Đã fix lỗi ID)
+-- =========================================================================
+
+INSERT INTO employee_shift (employee_id, shift_id, work_date, note) VALUES
+                                                                        (3, 1, '2026-05-17', 'Lễ tân trực sáng'),
+                                                                        (4, 2, '2026-05-17', 'Staff 1 trực chiều'),
+                                                                        (5, 3, '2026-05-17', 'Staff 2 trực tối'),
+                                                                        (4, 3, '2026-05-17', 'Staff 1 tăng ca (thay cho nhân viên số 6)');
+
+-- =========================================================================
+-- DỮ LIỆU TRANSACTION LÕI (Booking, Chạy Phòng, Hóa Đơn)
+-- =========================================================================
+
+-- KỊCH BẢN 1: BOOKING ĐÃ HOÀN THÀNH & ĐÃ THANH TOÁN (Tháng 4/2026)
+INSERT INTO booking (id, customer_id, status, note, created_at, expected_checkout_time) VALUES
+    (1, 1, 'CHECKED_OUT', 'Khách quen, giảm 10%', '2026-04-15 19:00:00', '2026-04-15 22:00:00');
+
+INSERT INTO booking_room (id, booking_id, room_id, status, checkin_time, checkout_time) VALUES
+    (1, 1, 1, 'DONE', '2026-04-15 19:00:00', '2026-04-15 22:00:00');
+
+INSERT INTO booking_room_employee (booking_room_id, employee_id) VALUES (1, 4), (1, 5);
+
+INSERT INTO invoice (id, booking_id, room_price, service_price, discount, total_price, status, created_at, paid_at) VALUES
+    (1, 1, 300000, 480000, 78000, 702000, 'PAID', '2026-04-15 22:05:00', '2026-04-15 22:06:00');
+
+INSERT INTO invoice_room_detail (invoice_id, booking_room_id, hours_used, price_per_hour, total_price) VALUES
+    (1, 1, 3.0, 100000, 300000);
+
+INSERT INTO invoice_item (invoice_id, booking_room_id, product_id, quantity, unit_price, total_price) VALUES
+                                                                                                          (1, 1, 1, 10, 35000, 350000),
+                                                                                                          (1, 1, 6, 1, 250000, 250000),
+                                                                                                          (1, 1, 9, 4, 5000, 20000);
+
+INSERT INTO feedback (invoice_id, rating, comment, sentiment_label, sentiment_score, created_at) VALUES
+    (1, 5, 'Phòng sạch sẽ, âm thanh rất hay, nhân viên nhiệt tình.', 'POSITIVE', 0.95, '2026-04-16 08:00:00');
+
+-- KỊCH BẢN 2: BOOKING COMBO 2 PHÒNG ĐÃ HOÀN THÀNH (Lễ 30/4/2026)
+INSERT INTO booking (id, customer_id, status, note, created_at) VALUES
+    (2, 2, 'CHECKED_OUT', 'Sự kiện công ty', '2026-04-30 20:00:00');
+
+INSERT INTO booking_room (id, booking_id, room_id, status, checkin_time, checkout_time) VALUES
+                                                                                            (2, 2, 5, 'DONE', '2026-04-30 20:00:00', '2026-04-30 23:30:00'),
+                                                                                            (3, 2, 6, S'DONE', '2026-04-30 20:00:00', '2026-04-30 23:30:00');
+
+INSERT INTO invoice (id, booking_id, room_price, service_price, discount, total_price, status, created_at, paid_at) VALUES
+    (2, 2, 2940000, 2500000, 0, 5440000, 'PAID', '2026-04-30 23:35:00', '2026-04-30 23:40:00');
+
+INSERT INTO feedback (invoice_id, rating, comment, sentiment_label, sentiment_score, created_at) VALUES
+    (2, 3, 'Giá ngày lễ hơi cao, gọi bia mang ra hơi chậm.', 'NEUTRAL', 0.50, '2026-05-01 10:00:00');
+
+-- KỊCH BẢN 3: BOOKING ĐANG HÁT (HIỆN TẠI)
+INSERT INTO booking (id, customer_id, status, note, created_at) VALUES
+    (3, 4, 'CHECKED_IN', 'Đang tổ chức sinh nhật', '2026-05-17 18:00:00');
+
+INSERT INTO booking_room (id, booking_id, room_id, status, checkin_time) VALUES
+    (4, 3, 3, 'PLAYING', '2026-05-17 18:15:00');
+
+INSERT INTO booking_room_employee (booking_room_id, employee_id) VALUES (4, 5); -- Gán cho Staff 2 (ID=5)
+
+INSERT INTO invoice (id, booking_id, room_price, service_price, discount, total_price, status, created_at) VALUES
+    (3, 3, 0, 350000, 0, 350000, 'UNPAID', '2026-05-17 18:15:00');
+
+INSERT INTO invoice_item (invoice_id, booking_room_id, product_id, quantity, unit_price, total_price) VALUES
+    (3, 4, 10, 1, 350000, 350000);
+
+-- KỊCH BẢN 4: BOOKING ĐẶT TRƯỚC (Tương lai)
+INSERT INTO booking (id, customer_id, status, note, created_at, reservation_time) VALUES
+    (4, 5, 'BOOKED', 'Khách đã cọc 500k', '2026-05-17 10:00:00', '2026-05-18 20:00:00');
+
+INSERT INTO booking_room (id, booking_id, room_id, status) VALUES
+    (5, 4, 4, 'PLAYING');
+
+-- KỊCH BẢN 5: BOOKING BỊ HỦY
+INSERT INTO booking (id, customer_id, status, note, created_at) VALUES
+    (5, 3, 'CANCELLED', 'Khách báo bận đột xuất', '2026-05-01 09:00:00');
+
+INSERT INTO booking_room (id, booking_id, room_id, status) VALUES
+    (6, 5, 2, 'CANCELLED');
+
+-- =========================================================================
+-- DỮ LIỆU NHÂN SỰ (Lương, Thưởng, Phạt, Thông báo)
+-- =========================================================================
+
+INSERT INTO bonus (employee_id, booking_id, invoice_id, type, amount, note, created_by, created_at) VALUES
+                                                                                                        (4, 1, 1, 'TIP', 100000, 'Khách bàn 101 tip', 2, '2026-04-15 22:30:00'),
+                                                                                                        (5, 2, 2, 'SERVICE', 200000, 'Thưởng bán combo rượu Chivas', 2, '2026-04-30 23:50:00'), -- Gán cho Staff 2 (ID=5)
+                                                                                                        (3, NULL, NULL, 'KPI', 500000, 'Lễ tân xuất sắc tháng 4', 1, '2026-04-30 18:00:00');
+
+INSERT INTO penalty (employee_id, booking_id, invoice_id, type, amount, reason, created_by, created_at) VALUES
+                                                                                                            (5, 1, 1, 'MISCONDUCT', 50000, 'Làm vỡ ly phòng 101', 2, '2026-04-15 21:00:00'),
+                                                                                                            (4, NULL, NULL, 'LATE', 100000, 'Đi làm muộn 45 phút', 2, '2026-05-02 08:45:00');
+
+INSERT INTO payroll_period (id, name, period_start, period_end, status, created_by, approved_by, created_at) VALUES
+                                                                                                                 (1, 'Lương Tháng 03/2026', '2026-03-01', '2026-03-31', 'PAID', 2, 1, '2026-04-01 10:00:00'),
+                                                                                                                 (2, 'Lương Tháng 04/2026', '2026-04-01', '2026-04-30', 'APPROVED', 2, 1, '2026-05-01 10:00:00'),
+                                                                                                                 (3, 'Lương Tháng 05/2026', '2026-05-01', '2026-05-31', 'DRAFT', 2, NULL, '2026-05-01 08:00:00');
+
+INSERT INTO payroll (payroll_period_id, employee_id, period_start, period_end, total_work_hours, base_salary, salary_from_hours, total_bonus, total_penalty, total_salary, status) VALUES
+                                                                                                                                                                                       (2, 3, '2026-04-01', '2026-04-30', 208, 5000000, 0, 500000, 0, 5500000, 'APPROVED'),
+                                                                                                                                                                                       (2, 4, '2026-04-01', '2026-04-30', 180, 0, 5400000, 100000, 50000, 5450000, 'APPROVED'),
+                                                                                                                                                                                       (2, 5, '2026-04-01', '2026-04-30', 150, 0, 4500000, 0, 50000, 4450000, 'APPROVED');
+
+INSERT INTO notification (account_id, title, body, is_read, created_at) VALUES
+                                                                            (1, 'Báo cáo doanh thu', 'Doanh thu ngày lễ 30/4 đạt chỉ tiêu. Vui lòng xem chi tiết.', FALSE, '2026-05-01 08:00:00'),
+                                                                            (2, 'Hủy phòng', 'Khách Lê Quốc Bảo vừa hủy phòng đặt trước.', TRUE, '2026-05-01 09:05:00');
