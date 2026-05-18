@@ -63,6 +63,8 @@ CREATE TABLE account (
                          role        ENUM('MANAGER', 'STAFF', 'RECEPTIONIST', 'ADMIN') NOT NULL,
                          employee_id INT NULL,
                          status      ENUM('ACTIVE', 'INACTIVE') DEFAULT 'ACTIVE',
+                         totp_secret_key VARCHAR(64) NULL,
+                         is_2fa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 
                          FOREIGN KEY (employee_id) REFERENCES employee(id)
 );
@@ -139,6 +141,8 @@ CREATE TABLE booking_room_employee (
                                        id               INT PRIMARY KEY AUTO_INCREMENT,
                                        booking_room_id  INT NOT NULL,
                                        employee_id      INT NOT NULL,
+                                       start_time       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                       end_time         DATETIME NULL,
 
                                        FOREIGN KEY (booking_room_id) REFERENCES booking_room(id),
                                        FOREIGN KEY (employee_id)     REFERENCES employee(id)

@@ -70,6 +70,7 @@ public class ProfileServiceImpl implements ProfileService {
                 .role(account.getRole().name())
                 .phone(account.getEmployee() != null ? account.getEmployee().getPhone() : "")
                 .avatarUrl(account.getAvatarUrl())
+                .twoFactorEnabled(Boolean.TRUE.equals(account.getTwoFactorEnabled()))
                 .recentActivities(activities.stream().limit(3).toList())
                 .build();
     }

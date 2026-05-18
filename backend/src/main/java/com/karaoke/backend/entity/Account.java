@@ -50,6 +50,12 @@ public class Account {
     @JsonIgnore
     private List<Notification> notifications;
 
+    @Column(name = "totp_secret_key", length = 64)
+    private String totpSecretKey;
+
+    @Column(name = "is_2fa_enabled", nullable = false)
+    private Boolean twoFactorEnabled = false;
+
     public enum Role {
         MANAGER, STAFF, RECEPTIONIST, ADMIN
     }

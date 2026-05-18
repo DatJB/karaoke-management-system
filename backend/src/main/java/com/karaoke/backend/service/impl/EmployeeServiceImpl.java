@@ -173,6 +173,10 @@ public class EmployeeServiceImpl implements EmployeeService
         }
 
         Account account = employee.getAccount();
+        String avatarUrl = account != null && account.getAvatarUrl() != null
+                ? account.getAvatarUrl()
+                : employee.getAvatarUrl();
+
         return EmployeeResponse.builder()
                 .id(employee.getId())
                 .code(employee.getCode())
@@ -181,7 +185,7 @@ public class EmployeeServiceImpl implements EmployeeService
                 .baseSalary(employee.getBaseSalary())
                 .salaryPerHour(employee.getSalaryPerHour())
                 .status(employee.getStatus())
-                .avatarUrl(employee.getAccount().getAvatarUrl())
+                .avatarUrl(avatarUrl)
                 .accountId(account != null ? account.getId() : null)
                 .username(account != null ? account.getUsername() : null)
                 .role(account != null ? account.getRole() : null)

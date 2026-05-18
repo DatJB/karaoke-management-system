@@ -14,6 +14,7 @@ public class ProfileResponse {
     private String role;
     private String phone;
     private String avatarUrl;
+    private Boolean twoFactorEnabled;
     private List<ActivityInfo> recentActivities;
 
     @Data
