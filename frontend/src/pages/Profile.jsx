@@ -156,6 +156,7 @@ export default function Profile() {
       const data = await setupTwoFactor()
       setTwoFactorUrl(data.otpAuthUrl)
       setTwoFactorCode('')
+      setProfileData((prev) => prev ? { ...prev, twoFactorEnabled: false, is2faEnabled: false } : prev)
       toast.success('Đã tạo mã QR xác thực 2 lớp')
     } catch (error) {
       toast.error(error.response?.data?.message || 'Không thể tạo mã QR 2FA')
@@ -336,7 +337,11 @@ export default function Profile() {
                     Xác nhận bật 2FA
                   </button>
                   <button
-                    onClick={() => { setTwoFactorUrl(''); setTwoFactorCode('') }}
+                    onClick={() => {
+                      setTwoFactorUrl('')
+                      setTwoFactorCode('')
+                      setProfileData((prev) => prev ? { ...prev, twoFactorEnabled: false, is2faEnabled: false } : prev)
+                    }}
                     className="px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   >
                     Hủy
