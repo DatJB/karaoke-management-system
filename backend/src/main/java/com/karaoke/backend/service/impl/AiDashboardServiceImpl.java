@@ -8,6 +8,7 @@ import com.karaoke.backend.repository.AiInsightReportRepository;
 import com.karaoke.backend.repository.FeedbackRepository;
 import com.karaoke.backend.repository.WeeklyInsightReportRepository;
 import com.karaoke.backend.service.AiDashboardService;
+import com.karaoke.backend.service.AiIntegrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +32,7 @@ public class AiDashboardServiceImpl implements AiDashboardService
     private final FeedbackRepository feedbackRepository;
     private final AiInsightReportRepository insightRepository;
     private final WeeklyInsightReportRepository weeklyInsightReportRepository;
+    private final AiIntegrationService aiIntegrationService;
 
     @Override
     public AiDashboardResponse getDashboardData(LocalDate startDate, LocalDate endDate, int page, int size, String sortBy, String sentiment)
@@ -115,7 +117,9 @@ public class AiDashboardServiceImpl implements AiDashboardService
 
         List<String> displayTags = feedback.getExtractedTags() == null
                 ? List.of()
-                : feedback.getExtractedTags();
+                : feedback.getExtractedTags().stream()
+                .map(FeedbackTag::getExtractedTag)
+                .collect(Collectors.toList());
 
         return LiveFeedback.builder()
                 .id(feedback.getId())
@@ -161,6 +165,33 @@ public class AiDashboardServiceImpl implements AiDashboardService
                                 ? List.of(report.getWeeklyActionPlan().split("\\n"))
                                 : List.of())
                         .build());
+    }
+
+    @Override
+    public void generateReport(String type, LocalDate date)
+    {
+        if ("DAY".equalsIgnoreCase(type))
+        {
+            LocalDateTime start = date.atStartOfDay();
+            LocalDateTime end = date.atTime(23, 59, 59);
+            List<Feedback> feedbacks = feedbackRepository.findByCreatedAtBetween(start, end);
+            List<String> comments = feedbacks.stream()
+                    .map(Feedback::getComment)
+                    .filter(c -> c != null && !c.isBlank())
+                    .collect(Collectors.toList());
+            if (comments.isEmpty()) {
+                throw new IllegalArgumentException("Không có phản hồi nào trong ngày này để tổng hợp.");
+            }
+            aiIntegrationService.generateDailyReport(date, comments);
+        }
+        else if ("WEEK".equalsIgnoreCase(type))
+        {
+            aiIntegrationService.generateWeeklyReport(date);
+        }
+        else
+        {
+            throw new IllegalArgumentException("Loại báo cáo không hợp lệ.");
+        }
     }
 }
 

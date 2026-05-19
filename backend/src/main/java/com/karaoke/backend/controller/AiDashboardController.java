@@ -47,4 +47,20 @@ public class AiDashboardController
     {
         return ResponseEntity.ok(dashboardService.getWeeklyReport(week, year).orElse(null));
     }
+
+    @PostMapping("/generate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<String> generateReport(
+            @RequestParam String type,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date)
+    {
+        try {
+            dashboardService.generateReport(type, date);
+            return ResponseEntity.ok("Tổng hợp thành công!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi hệ thống khi tổng hợp báo cáo: " + e.getMessage());
+        }
+    }
 }
