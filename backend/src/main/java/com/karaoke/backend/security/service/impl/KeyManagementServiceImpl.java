@@ -1,5 +1,7 @@
 package com.karaoke.backend.security.service.impl;
 
+import com.karaoke.backend.entity.SystemConfig;
+import com.karaoke.backend.repository.SystemConfigRepository;
 import com.karaoke.backend.security.core.ShamirAlgorithm;
 import com.karaoke.backend.security.dto.ShareDTO;
 import com.karaoke.backend.security.service.KeyManagementService;
@@ -21,6 +23,7 @@ import java.util.List;
 public class KeyManagementServiceImpl implements KeyManagementService
 {
     private PublicKey currentPublicKey;
+    private final SystemConfigRepository systemConfigRepository;
 
 //    @Override
 //    public List<ShareDTO> generateAndSplitMasterKey() throws Exception
@@ -88,11 +91,16 @@ public class KeyManagementServiceImpl implements KeyManagementService
 
         List<ShareDTO> shares = ShamirAlgorithm.split(secretInt, 3, 4);
 
-        for (ShareDTO s : shares) {
-            if (s.getX() == 0) {
-                s.setY(s.getY() + ":" + n.toString(16));
-            }
-        }
+        BigInteger p = ShamirAlgorithm.getP();
+
+        String systemShareValue = p.toString(16) + ":" + n.toString(16);
+
+        SystemConfig pConfig = systemConfigRepository.findByConfigKey("SHAMIR_SYSTEM_SHARE_P")
+                .orElse(new SystemConfig());
+        pConfig.setConfigKey("SHAMIR_SYSTEM_SHARE_P");
+        pConfig.setConfigValue(systemShareValue);
+        pConfig.setDescription("Tham số P (Shamir) và Modulus N (RSA) dùng để làm nền toán học khôi phục khóa");
+        systemConfigRepository.save(pConfig);
 
         System.out.println("Đã xử lý file upload và băm thành công 4 mảnh!");
         return shares;

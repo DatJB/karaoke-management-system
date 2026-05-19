@@ -5,7 +5,7 @@ import com.karaoke.backend.dto.request.DiscountRequest;
 import com.karaoke.backend.dto.response.InvoiceDetailResponse;
 import com.karaoke.backend.dto.response.InvoiceSummaryResponse;
 import com.karaoke.backend.service.InvoiceService;
-import com.karaoke.backend.service.InvoiceSecurityService;
+import com.karaoke.backend.security.service.InvoiceSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;

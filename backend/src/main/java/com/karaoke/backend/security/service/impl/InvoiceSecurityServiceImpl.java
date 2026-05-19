@@ -1,10 +1,12 @@
-package com.karaoke.backend.service.impl;
+package com.karaoke.backend.security.service.impl;
 
 import com.karaoke.backend.dto.response.InvoiceRecoveryReportDto;
 import com.karaoke.backend.dto.response.InvoiceTamperReportDto;
 import com.karaoke.backend.entity.Invoice;
+import com.karaoke.backend.entity.SystemConfig;
 import com.karaoke.backend.repository.InvoiceRepository;
-import com.karaoke.backend.service.InvoiceSecurityService;
+import com.karaoke.backend.repository.SystemConfigRepository;
+import com.karaoke.backend.security.service.InvoiceSecurityService;
 import com.karaoke.backend.util.CryptoUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class InvoiceSecurityServiceImpl implements InvoiceSecurityService {
 
     private final InvoiceRepository invoiceRepository;
+    private final SystemConfigRepository systemConfigRepository;
     private static final String GENESIS_HASH = "secure-karaoke-genesis-hash-value-00000000000000000";
 
     @Override
@@ -39,6 +42,15 @@ public class InvoiceSecurityServiceImpl implements InvoiceSecurityService {
             File pubKeyFile = new File("keys/public_key.pem");
             pubKeyFile.getParentFile().mkdirs();
             Files.writeString(pubKeyFile.toPath(), pubPem, StandardCharsets.UTF_8);
+
+            SystemConfig config = systemConfigRepository.findByConfigKey("RSA_MASTER_PUBLIC_KEY")
+                    .orElse(new SystemConfig());
+
+            config.setConfigKey("RSA_MASTER_PUBLIC_KEY");
+            config.setConfigValue(pubPem);
+            config.setDescription("Khóa công khai (Public Key) dùng để tự động mã hóa dữ liệu của hệ thống");
+
+            systemConfigRepository.save(config);
 
             // Also keep private key backup for debugging/server reference if needed
             File privKeyFile = new File("keys/private_key_backup.pem");

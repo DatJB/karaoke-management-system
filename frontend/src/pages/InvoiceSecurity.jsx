@@ -62,7 +62,6 @@ export default function InvoiceSecurity() {
         type: 'error',
         text: 'Không thể sinh cặp khóa bảo mật mới: ' + error.message
       })
-    } finally {
       setActionLoading(null)
     }
   }

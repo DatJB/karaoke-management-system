@@ -1,4 +1,4 @@
-package com.karaoke.backend.service;
+package com.karaoke.backend.security.service;
 
 import com.karaoke.backend.dto.response.InvoiceRecoveryReportDto;
 import com.karaoke.backend.dto.response.InvoiceTamperReportDto;

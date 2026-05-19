@@ -7,7 +7,7 @@ import com.karaoke.backend.exception.ResourceNotFoundException;
 import com.karaoke.backend.repository.AccountRepository;
 import com.karaoke.backend.security.JwtService;
 import com.karaoke.backend.service.AuthService;
-import com.karaoke.backend.service.TwoFactorService;
+import com.karaoke.backend.security.service.TwoFactorService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.*;

@@ -1,6 +1,6 @@
-package com.karaoke.backend.service.impl;
+package com.karaoke.backend.security.service.impl;
 
-import com.karaoke.backend.service.TwoFactorService;
+import com.karaoke.backend.security.service.TwoFactorService;
 import org.jboss.aerogear.security.otp.Totp;
 import org.jboss.aerogear.security.otp.api.Base32;
 import org.springframework.stereotype.Service;

@@ -1,17 +1,36 @@
 import axiosClient from './axiosClient';
 
 const keyManagementApi = {
-    splitUpload: (file) => {
+    splitUpload: (file, managerUsernames) => {
         const formData = new FormData();
         formData.append('file', file);
+        managerUsernames.forEach(username => {
+            formData.append('managerUsernames', username);
+        });
         return axiosClient.post('/security/keys/split-upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
         });
     },
-    restore: (shares) => {
-        return axiosClient.post('/security/keys/restore', { shares }, { responseType: 'blob' });
+    restore: (files) => {
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+        return axiosClient.post('/security/keys/restore', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            responseType: 'blob'
+        });
+    },
+    claimShare: (otpCode, username) => {
+        return axiosClient.post('/security/keys/claim-share', { otpCode, username }, { responseType: 'blob' });
+    },
+    getActiveDistribution: () => {
+        return axiosClient.get('/security/keys/active-distribution');
+    },
+    endDistribution: () => {
+        return axiosClient.post('/security/keys/end-distribution');
     }
 };
 

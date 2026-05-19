@@ -1,18 +1,22 @@
 package com.karaoke.backend.security.core;
 
 import com.karaoke.backend.security.dto.ShareDTO;
+import lombok.Getter;
+
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
 public class ShamirAlgorithm
 {
     private static final SecureRandom random = new SecureRandom();
+    private static BigInteger p;
 
     public static List<ShareDTO> split(BigInteger secret, int k, int n)
     {
-        BigInteger p = BigInteger.probablePrime(secret.bitLength() + 2, random);
+        p = BigInteger.probablePrime(secret.bitLength() + 2, random);
 
         BigInteger[] coefficients = new BigInteger[k - 1];
         for (int i = 0; i < k - 1; i++) {
@@ -73,5 +77,10 @@ public class ShamirAlgorithm
             secret = secret.add(yi.multiply(li)).mod(currentP);
         }
         return secret.mod(currentP);
+    }
+
+    public static BigInteger getP()
+    {
+        return p;
     }
 }
