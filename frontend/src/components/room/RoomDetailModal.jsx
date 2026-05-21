@@ -109,6 +109,7 @@ export default function RoomDetailModal({
 
   const [orderItems, setOrderItems] = useState([])
   const [availableProducts, setAvailableProducts] = useState([])
+  const [productSearch, setProductSearch] = useState('')
   const [addingQuantities, setAddingQuantities] = useState({})
   const [assignedStaff, setAssignedStaff] = useState([])
   const [availableEmployees, setAvailableEmployees] = useState([])
@@ -202,7 +203,8 @@ export default function RoomDetailModal({
     if (orderAction === 'VIEW' && selectedRoom) {
       fetchOrders()
     } else if (orderAction === 'ADD' && selectedRoom) {
-      getProducts().then(data => setAvailableProducts(data.content || [])).catch(console.error)
+      getProducts({ size: 1000 }).then(data => setAvailableProducts(data.content || [])).catch(console.error)
+      setProductSearch('')
       setAddingQuantities({})
     }
   }, [orderAction, selectedRoom])
@@ -542,40 +544,57 @@ export default function RoomDetailModal({
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input type="text" placeholder="Tìm kiếm thức ăn, đồ uống..." className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm thức ăn, đồ uống..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {availableProducts.map(product => {
-                const qty = addingQuantities[product.id] || 0
-                return (
-                  <div key={product.id} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0">
-                    <div>
-                      <div className="font-bold text-slate-900 dark:text-white mb-1">{product.name}</div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-primary">{product.price?.toLocaleString()}đ</span>
-                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${product.stock > 0 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                          {product.stock > 0 ? `Còn ${product.stock}` : 'Hết hàng'}
-                        </span>
+              {availableProducts
+                .filter(p => 
+                  p.name?.toLowerCase().includes(productSearch.toLowerCase()) || 
+                  p.code?.toLowerCase().includes(productSearch.toLowerCase())
+                )
+                .map(product => {
+                  const qty = addingQuantities[product.id] || 0
+                  return (
+                    <div key={product.id} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0">
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white mb-1">{product.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-primary">{product.price?.toLocaleString()}đ</span>
+                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${product.stock > 0 ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
+                            {product.stock > 0 ? `Còn ${product.stock}` : 'Hết hàng'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, qty - 1) }))} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
+                        <input
+                          type="number"
+                          min="0"
+                          value={qty}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, val) }));
+                          }}
+                          className="w-12 h-8 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
+                        />
+                        <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: qty + 1 }))} disabled={product.stock <= 0} className="w-8 h-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed">+</button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, qty - 1) }))} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
-                      <input
-                        type="number"
-                        min="0"
-                        value={qty}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setAddingQuantities(prev => ({ ...prev, [product.id]: Math.max(0, val) }));
-                        }}
-                        className="w-12 h-8 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
-                      />
-                      <button onClick={() => setAddingQuantities(prev => ({ ...prev, [product.id]: qty + 1 }))} disabled={product.stock <= 0} className="w-8 h-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed">+</button>
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              {availableProducts.filter(p => 
+                p.name?.toLowerCase().includes(productSearch.toLowerCase()) || 
+                p.code?.toLowerCase().includes(productSearch.toLowerCase())
+              ).length === 0 && (
+                <p className="text-center text-slate-500 mt-10">Không tìm thấy sản phẩm phù hợp.</p>
+              )}
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800 shrink-0">
               <button onClick={submitAddOrders}

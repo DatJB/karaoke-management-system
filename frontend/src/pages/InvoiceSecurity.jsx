@@ -110,7 +110,7 @@ export default function InvoiceSecurity() {
       setVerifyReport(report)
       setVerifyPageInfo({ number: res.number, totalPages: res.totalPages, totalElements: res.totalElements })
 
-      const isTampered = report.some(item => item.status === 'TAMPERED')
+      const isTampered = res.hasTampered
       if (isTampered) {
         setStatusMessage({
           type: 'error',
@@ -153,8 +153,8 @@ export default function InvoiceSecurity() {
       setRecoverPageInfo({ number: res.number, totalPages: res.totalPages, totalElements: res.totalElements })
       setActiveTab('recover') // Switch tab to show recovery report
 
-      const isMismatch = report.some(item => item.status === 'MISMATCH')
-      const isDecFailed = report.some(item => item.status === 'DECRYPTION_FAILED')
+      const isMismatch = res.hasMismatch
+      const isDecFailed = res.hasDecFailed
 
       if (isMismatch) {
         setStatusMessage({

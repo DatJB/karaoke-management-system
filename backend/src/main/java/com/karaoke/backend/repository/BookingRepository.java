@@ -16,7 +16,7 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
     long countByCreatedAtAfter(LocalDateTime startOfDay);
     List<Booking> findTop5ByOrderByCreatedAtDesc();
 
-    @Query("SELECT b FROM Booking b JOIN b.bookingRooms br WHERE br.room.id = :roomId AND b.status IN :statuses")
+    @Query("SELECT b FROM Booking b JOIN b.bookingRooms br WHERE br.room.id = :roomId AND b.status IN :statuses ORDER BY b.id DESC")
     List<Booking> findByRoomIdAndStatuses(@Param("roomId") Integer roomId, @Param("statuses") Collection<Booking.BookingStatus> statuses);
 
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);

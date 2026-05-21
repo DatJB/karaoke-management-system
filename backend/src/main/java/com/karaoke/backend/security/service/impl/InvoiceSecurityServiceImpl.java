@@ -2,6 +2,8 @@ package com.karaoke.backend.security.service.impl;
 
 import com.karaoke.backend.dto.response.InvoiceRecoveryReportDto;
 import com.karaoke.backend.dto.response.InvoiceTamperReportDto;
+import com.karaoke.backend.dto.response.VerifyChainResponseDto;
+import com.karaoke.backend.dto.response.VerifyRecoverResponseDto;
 import com.karaoke.backend.entity.Invoice;
 import com.karaoke.backend.entity.SystemConfig;
 import com.karaoke.backend.repository.InvoiceRepository;
@@ -9,8 +11,6 @@ import com.karaoke.backend.repository.SystemConfigRepository;
 import com.karaoke.backend.security.service.InvoiceSecurityService;
 import com.karaoke.backend.util.CryptoUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -66,7 +66,7 @@ public class InvoiceSecurityServiceImpl implements InvoiceSecurityService {
     }
 
     @Override
-    public Page<InvoiceTamperReportDto> verifyInvoiceChain(Pageable pageable) {
+    public VerifyChainResponseDto verifyInvoiceChain(Pageable pageable) {
         List<Invoice> paidInvoices = invoiceRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
                 .filter(i -> i.getStatus() == Invoice.InvoiceStatus.PAID)
                 .collect(Collectors.toList());
@@ -99,15 +99,25 @@ public class InvoiceSecurityServiceImpl implements InvoiceSecurityService {
             report.add(dto);
         }
 
+        boolean hasTampered = report.stream().anyMatch(item -> item.getStatus().equals("TAMPERED"));
+
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), report.size());
         List<InvoiceTamperReportDto> pageContent = start > report.size() ? new ArrayList<>() : report.subList(start, end);
         
-        return new PageImpl<>(pageContent, pageable, report.size());
+        int totalPages = (int) Math.ceil((double) report.size() / pageable.getPageSize());
+
+        return VerifyChainResponseDto.builder()
+                .content(pageContent)
+                .number(pageable.getPageNumber())
+                .totalPages(totalPages)
+                .totalElements(report.size())
+                .hasTampered(hasTampered)
+                .build();
     }
 
     @Override
-    public Page<InvoiceRecoveryReportDto> verifyAndRecoverAmounts(String privateKeyPem, Pageable pageable) {
+    public VerifyRecoverResponseDto verifyAndRecoverAmounts(String privateKeyPem, Pageable pageable) {
         PrivateKey privateKey;
         try {
             privateKey = CryptoUtils.parsePrivateKeyPem(privateKeyPem);
@@ -155,11 +165,23 @@ public class InvoiceSecurityServiceImpl implements InvoiceSecurityService {
             report.add(dto);
         }
 
+        boolean hasMismatch = report.stream().anyMatch(item -> item.getStatus().equals("MISMATCH"));
+        boolean hasDecFailed = report.stream().anyMatch(item -> item.getStatus().equals("DECRYPTION_FAILED"));
+
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), report.size());
         List<InvoiceRecoveryReportDto> pageContent = start > report.size() ? new ArrayList<>() : report.subList(start, end);
         
-        return new PageImpl<>(pageContent, pageable, report.size());
+        int totalPages = (int) Math.ceil((double) report.size() / pageable.getPageSize());
+
+        return VerifyRecoverResponseDto.builder()
+                .content(pageContent)
+                .number(pageable.getPageNumber())
+                .totalPages(totalPages)
+                .totalElements(report.size())
+                .hasMismatch(hasMismatch)
+                .hasDecFailed(hasDecFailed)
+                .build();
     }
 
     @Override

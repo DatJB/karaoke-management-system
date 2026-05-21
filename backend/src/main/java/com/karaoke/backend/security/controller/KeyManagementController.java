@@ -18,14 +18,19 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.karaoke.backend.security.dto.RecoveryShareDetail;
+import com.karaoke.backend.security.dto.RecoveryShareSummary;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/security/keys")
@@ -40,7 +45,7 @@ public class KeyManagementController
     public static final Map<String, ShareDTO> pendingSharesCache = new ConcurrentHashMap<>();
     public static final Map<String, List<String>> activeDistributionInfo = new ConcurrentHashMap<>();
     public static boolean isRecoveryActive = false;
-    public static final Map<Integer, ShareDTO> collaborativeRecoveryShares = new ConcurrentHashMap<>();
+    public static final Map<Integer, RecoveryShareDetail> collaborativeRecoveryShares = new ConcurrentHashMap<>();
     public static byte[] restoredMasterKeyCache = null;
 
 //    @PostMapping("/setup")
@@ -188,23 +193,39 @@ public class KeyManagementController
 
     @GetMapping("/active-recovery")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<?> getActiveRecovery() {
+    public ResponseEntity<?> getActiveRecovery(Authentication authentication) {
         Map<String, Object> response = new HashMap<>();
         response.put("active", isRecoveryActive);
         response.put("count", collaborativeRecoveryShares.size());
+        
+        boolean isAdmin = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        String username = authentication.getName();
+        
+        response.put("shares", getRecoverySharesSummary(isAdmin, username));
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/upload-recovery-shares")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<?> uploadRecoveryShares(@RequestParam("files") List<MultipartFile> files) {
+    public ResponseEntity<?> uploadRecoveryShares(
+            @RequestParam("files") List<MultipartFile> files,
+            Authentication authentication) {
         try {
             if (!isRecoveryActive) return ResponseEntity.badRequest().body("Phiên khôi phục chưa bắt đầu.");
+            String username = authentication.getName();
             for (MultipartFile file : files) {
                 if (file.isEmpty()) continue;
                 String pemContent = new String(file.getBytes(), StandardCharsets.UTF_8);
                 ShareDTO share = KeyConverterUtil.pemContentToShare(pemContent);
-                collaborativeRecoveryShares.put(share.getX(), share);
+                
+                RecoveryShareDetail detail = new RecoveryShareDetail(
+                        share.getX(),
+                        share.getY(),
+                        username,
+                        file.getOriginalFilename(),
+                        System.currentTimeMillis()
+                );
+                collaborativeRecoveryShares.put(share.getX(), detail);
             }
             Map<String, Object> socketMessage = new HashMap<>();
             socketMessage.put("status", "RECOVERY_UPDATE");
@@ -216,6 +237,40 @@ public class KeyManagementController
         }
     }
 
+    @DeleteMapping("/recovery-shares/{x}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> deleteRecoveryShare(@PathVariable("x") int x, Authentication authentication) {
+        try {
+            if (!isRecoveryActive) {
+                return ResponseEntity.badRequest().body("Phiên khôi phục chưa bắt đầu hoặc đã kết thúc.");
+            }
+
+            RecoveryShareDetail detail = collaborativeRecoveryShares.get(x);
+            if (detail == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy mảnh khóa tương ứng.");
+            }
+
+            boolean isAdmin = authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            boolean isOwner = detail.getUploadedBy().equals(authentication.getName());
+
+            if (!isAdmin && !isOwner) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Bạn không có quyền thu hồi mảnh khóa này!");
+            }
+
+            collaborativeRecoveryShares.remove(x);
+
+            Map<String, Object> socketMessage = new HashMap<>();
+            socketMessage.put("status", "RECOVERY_UPDATE");
+            socketMessage.put("count", collaborativeRecoveryShares.size());
+            messagingTemplate.convertAndSend("/topic/key-distribution", (Object) socketMessage);
+
+            return ResponseEntity.ok("Thu hồi mảnh khóa thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi thu hồi mảnh: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/execute-collaborative-recovery")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> executeCollaborativeRecovery() {
@@ -224,7 +279,10 @@ public class KeyManagementController
                 return ResponseEntity.badRequest().body("Cần ít nhất 3 mảnh khóa để khôi phục!");
             }
             
-            List<ShareDTO> shares = new ArrayList<>(collaborativeRecoveryShares.values());
+            List<ShareDTO> shares = new ArrayList<>();
+            for (RecoveryShareDetail detail : collaborativeRecoveryShares.values()) {
+                shares.add(new ShareDTO(detail.getX(), detail.getY()));
+            }
 
             SystemConfig config = systemConfigRepository.findByConfigKey("SHAMIR_SYSTEM_SHARE_P")
                     .orElseThrow(() -> new ResourceNotFoundException("Lỗi hệ thống: Không tìm thấy tham số P và N trong Database!"));
@@ -256,6 +314,21 @@ public class KeyManagementController
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Khôi phục thất bại, nguyên nhân: " + e.getMessage());
         }
+    }
+
+    private List<RecoveryShareSummary> getRecoverySharesSummary(boolean isAdmin, String username) {
+        List<RecoveryShareSummary> summaries = new ArrayList<>();
+        for (RecoveryShareDetail detail : collaborativeRecoveryShares.values()) {
+            if (isAdmin || detail.getUploadedBy().equals(username)) {
+                summaries.add(new RecoveryShareSummary(
+                        detail.getX(),
+                        detail.getUploadedBy(),
+                        detail.getFileName(),
+                        detail.getUploadedAt()
+                ));
+            }
+        }
+        return summaries;
     }
 
     @GetMapping("/download-restored-key")

@@ -1,9 +1,7 @@
 package com.karaoke.backend.security.service;
 
-import com.karaoke.backend.dto.response.InvoiceRecoveryReportDto;
-import com.karaoke.backend.dto.response.InvoiceTamperReportDto;
-
-import org.springframework.data.domain.Page;
+import com.karaoke.backend.dto.response.VerifyChainResponseDto;
+import com.karaoke.backend.dto.response.VerifyRecoverResponseDto;
 import org.springframework.data.domain.Pageable;
 
 public interface InvoiceSecurityService {
@@ -19,14 +17,14 @@ public interface InvoiceSecurityService {
      * Loops through all PAID invoices and validates the SHA-256 chaining hash.
      * Returns a detailed list of integrity status for each invoice.
      */
-    Page<InvoiceTamperReportDto> verifyInvoiceChain(Pageable pageable);
+    VerifyChainResponseDto verifyInvoiceChain(Pageable pageable);
 
     /**
      * Resolves the real amount for each invoice by decrypting `encrypted_amount`
      * with the owner's uploaded Private Key PEM on RAM.
      * Compares it against `total_price` in the DB and returns discrepancy details.
      */
-    Page<InvoiceRecoveryReportDto> verifyAndRecoverAmounts(String privateKeyPem, Pageable pageable);
+    VerifyRecoverResponseDto verifyAndRecoverAmounts(String privateKeyPem, Pageable pageable);
 
     /**
      * Secures and migrates all legacy PAID invoices by calculating their chaining

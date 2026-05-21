@@ -51,14 +51,14 @@ export default function DashboardLayout() {
       { path: '/rooms', icon: Grid, label: 'Phòng hát', roles: ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'STAFF'] },
       { path: '/settings', icon: DollarSign, label: 'Giá phòng', roles: ['ADMIN'] },
       { path: '/customers', icon: Contact, label: 'Khách hàng', roles: ['ADMIN', 'MANAGER', 'RECEPTIONIST'] },
-      { path: '/invoices', icon: Receipt, label: 'Hóa đơn', roles: ['ADMIN', 'MANAGER', 'RECEPTIONIST'] },
+      { path: '/invoices', icon: Receipt, label: 'Hóa đơn', roles: ['ADMIN', 'MANAGER', 'RECEPTIONIST'], end: true },
       { path: '/invoices/security', icon: ShieldCheck, label: 'Bảo mật HĐ', roles: ['ADMIN', 'MANAGER'] },
       { path: '/security/keys', icon: Key, label: 'Quản lý Khóa', roles: ['ADMIN', 'MANAGER'] },
       { path: '/products', icon: Package, label: 'Kho hàng', roles: ['ADMIN', 'MANAGER', 'STAFF'] },
       { path: '/employees', icon: Users, label: 'Nhân sự', roles: ['ADMIN', 'MANAGER'] },
       { path: '/accounts', icon: ShieldCheck, label: 'Tài khoản', roles: ['ADMIN'] },
       { path: '/staff-assignment', icon: ClipboardList, label: 'Phân công NV', roles: ['ADMIN', 'MANAGER'] },
-      { path: '/payroll', icon: Calculator, label: 'Tính lương', roles: ['ADMIN', 'MANAGER'] },
+      { path: '/payroll', icon: Calculator, label: 'Tính lương', roles: ['ADMIN', 'MANAGER'], end: true },
       { path: '/payroll-list', icon: FileText, label: 'DS bảng lương', roles: ['ADMIN', 'MANAGER'] },
       { path: '/revenue', icon: BarChart3, label: 'Doanh thu', roles: ['ADMIN', 'MANAGER'] },
       { path: '/bonus-penalty', icon: Award, label: 'Thưởng & Phạt', roles: ['ADMIN', 'MANAGER'] },
@@ -98,6 +98,7 @@ export default function DashboardLayout() {
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.end}
               onClick={closeMobileSidebar}
               title={isSidebarCollapsed ? item.label : ''}
               className={({ isActive }) =>

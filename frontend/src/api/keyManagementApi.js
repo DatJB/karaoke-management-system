@@ -57,6 +57,9 @@ const keyManagementApi = {
         return axiosClient.get('/security/keys/download-restored-key', {
             responseType: 'blob'
         });
+    },
+    deleteRecoveryShare: (x) => {
+        return axiosClient.delete(`/security/keys/recovery-shares/${x}`);
     }
 };
 
