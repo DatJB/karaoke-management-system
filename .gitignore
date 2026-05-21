@@ -51,6 +51,16 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+
+# --- Installer & Temp Files ---
+*.deb
+*.deb.*
+*.log
+
 
 # --- Backend (Spring Boot/Maven) ---
 **/target/
