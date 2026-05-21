@@ -175,6 +175,8 @@ CREATE TABLE invoice (
                          created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
                          paid_at       DATETIME,
                          status        ENUM('UNPAID','PAID') DEFAULT 'UNPAID',
+                         hash_value    VARCHAR(255) NULL,
+                         encrypted_amount VARCHAR(1000) NULL,
 
                          FOREIGN KEY (booking_id) REFERENCES booking(id)
 );

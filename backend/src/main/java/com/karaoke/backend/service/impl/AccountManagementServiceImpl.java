@@ -91,6 +91,12 @@ public class AccountManagementServiceImpl implements AccountManagementService
         return newAvatarUrl;
     }
 
+    @Override
+    public Account findByUsername(String myUsername)
+    {
+        return accountRepository.findByUsername(myUsername).orElse(null);
+    }
+
     private Account getAccount(Integer id)
     {
         return accountRepository.findById(id)

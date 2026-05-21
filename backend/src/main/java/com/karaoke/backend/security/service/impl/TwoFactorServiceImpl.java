@@ -1,17 +1,20 @@
-package com.karaoke.backend.service.impl;
+package com.karaoke.backend.security.service.impl;
 
-import com.karaoke.backend.service.TwoFactorService;
+import com.karaoke.backend.security.service.TwoFactorService;
 import org.jboss.aerogear.security.otp.Totp;
 import org.jboss.aerogear.security.otp.api.Base32;
 import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class TwoFactorServiceImpl implements TwoFactorService
 {
     private static final String ISSUER = "KaraokeKTV";
+    private final Map<String, Long> usedCodesCache = new ConcurrentHashMap<>();
 
     @Override
     public String generateSecret()
@@ -33,14 +36,40 @@ public class TwoFactorServiceImpl implements TwoFactorService
                 + "&period=30";
     }
 
+//    @Override
+//    public boolean verifyCode(String secret, String code)
+//    {
+//        if (secret == null || code == null || !code.matches("\\d{6}")) {
+//            return false;
+//        }
+//
+//        Totp totp = new Totp(secret);
+//        return totp.verify(code);
+//    }
+
     @Override
     public boolean verifyCode(String secret, String code)
     {
-        if (secret == null || code == null || !code.matches("\\d{6}")) {
+        if (secret == null || code == null || !code.matches("\\d{6}"))
+        {
+            return false;
+        }
+        String cacheKey = secret + ":" + code;
+
+        if (usedCodesCache.containsKey(cacheKey))
+        {
+            System.out.println("Cảnh báo: Phát hiện Replay Attack hoặc người dùng double-click!");
             return false;
         }
 
         Totp totp = new Totp(secret);
-        return totp.verify(code);
+        boolean isValid = totp.verify(code);
+
+        if (isValid)
+        {
+            usedCodesCache.put(cacheKey, System.currentTimeMillis());
+        }
+
+        return isValid;
     }
 }

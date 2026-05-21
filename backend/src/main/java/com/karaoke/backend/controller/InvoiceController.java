@@ -5,6 +5,7 @@ import com.karaoke.backend.dto.request.DiscountRequest;
 import com.karaoke.backend.dto.response.InvoiceDetailResponse;
 import com.karaoke.backend.dto.response.InvoiceSummaryResponse;
 import com.karaoke.backend.service.InvoiceService;
+import com.karaoke.backend.security.service.InvoiceSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class InvoiceController
 {
     private final InvoiceService invoiceService;
+    private final InvoiceSecurityService invoiceSecurityService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTIONIST')")
@@ -85,6 +87,62 @@ public class InvoiceController
             return ResponseEntity.ok("Đã áp dụng giảm giá thành công!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/security/generate-keys")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> generateKeys() {
+        try {
+            String privateKeyPem = invoiceSecurityService.generateKeyPair();
+            byte[] data = privateKeyPem.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.add(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=private_key.pem");
+            headers.add(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/x-pem-file");
+
+            return new ResponseEntity<>(data, headers, org.springframework.http.HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/security/verify")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> verifyChain(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "9") int size) {
+        try {
+            return ResponseEntity.ok(invoiceSecurityService.verifyInvoiceChain(org.springframework.data.domain.PageRequest.of(page, size)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/security/recover")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> recoverAmounts(
+            @RequestParam("privateKeyFile") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "9") int size) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File Private Key trống!"));
+            }
+            String privateKeyPem = new String(file.getBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            return ResponseEntity.ok(invoiceSecurityService.verifyAndRecoverAmounts(privateKeyPem, org.springframework.data.domain.PageRequest.of(page, size)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/security/migrate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> migrateInvoices() {
+        try {
+            invoiceSecurityService.migrateLegacyInvoices();
+            return ResponseEntity.ok(Map.of("message", "Đã di trú và bảo mật thành công toàn bộ hóa đơn cũ!"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 }

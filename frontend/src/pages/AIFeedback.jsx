@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Sparkles, TrendingUp, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, Zap, Loader2, Calendar, ChevronLeft, ChevronRight, Star } from 'lucide-react'
-import { getAiDashboard, getWeeklyReport } from '../api/aiApi'
+import { Sparkles, TrendingUp, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, Zap, Loader2, Calendar, ChevronLeft, ChevronRight, Star, X } from 'lucide-react'
+import { getAiDashboard, getWeeklyReport, generateAiReport } from '../api/aiApi'
+import toast from 'react-hot-toast'
 
 export default function AIFeedback() {
   const getISOWeekString = (inputDate) => {
@@ -41,6 +42,60 @@ export default function AIFeedback() {
   const [page, setPage] = useState(0)
   const [weeklyData, setWeeklyData] = useState(null)
 
+  const [showAggregator, setShowAggregator] = useState(false)
+  const [aggType, setAggType] = useState('DAY') // 'DAY' | 'WEEK'
+  const [aggDate, setAggDate] = useState(formatDateString(new Date()))
+  const [aggWeek, setAggWeek] = useState(getCurrentWeek())
+  const [aggregating, setAggregating] = useState(false)
+
+  const handleAggregate = async () => {
+    try {
+      setAggregating(true)
+      
+      let dateParam = ""
+      if (aggType === 'DAY') {
+        dateParam = aggDate
+      } else {
+        const dates = getDatesOfWeek(aggWeek)
+        if (dates.length > 0) {
+          dateParam = formatDateString(dates[0]) // Monday of the selected week
+        } else {
+          toast.error("Tuần không hợp lệ")
+          setAggregating(false)
+          return
+        }
+      }
+
+      const toastId = toast.loading("Đang tổng hợp dữ liệu AI, vui lòng chờ giây lát...")
+      
+      await generateAiReport(aggType, dateParam)
+      
+      toast.success("Tổng hợp dữ liệu thành công!", { id: toastId })
+      setShowAggregator(false)
+
+      if (aggType === 'WEEK') {
+        setSelectedWeek(aggWeek);
+        setSelectedDayIndex(-1);
+      } else if (aggType === 'DAY') {
+        const aggDateObj = new Date(aggDate);
+        const calculatedWeekStr = getISOWeekString(aggDateObj);
+        setSelectedWeek(calculatedWeekStr);
+        
+        const weekDates = getDatesOfWeek(calculatedWeekStr);
+        const targetDateStr = formatDateString(aggDateObj);
+        const dayIdx = weekDates.findIndex(d => formatDateString(d) === targetDateStr);
+        setSelectedDayIndex(dayIdx);
+      }
+      
+      fetchData() // Refresh dashboard data
+    } catch (err) {
+      console.error(err)
+      toast.error(err.response?.data || "Không có phản hồi nào trong thời gian này để tổng hợp hoặc có lỗi xảy ra.")
+    } finally {
+      setAggregating(false)
+    }
+  }
+
   const weekDays = getDatesOfWeek(selectedWeek);
 
   const navigateWeek = (direction) => {
@@ -73,7 +128,7 @@ export default function AIFeedback() {
       const response = await getAiDashboard(params)
       setData(response)
 
-      // Fetch weekly specific data if in weekly mode
+      // Fetch weekly specific data
       if (selectedDayIndex === -1 && selectedWeek) {
         const [year, week] = selectedWeek.split('-W').map(Number);
         try {
@@ -144,11 +199,11 @@ export default function AIFeedback() {
             >
               <ChevronLeft size={20} />
             </button>
-            <div className="relative flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mr-2 min-w-[110px] text-center">
+            <div className="relative flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 cursor-pointer">
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mr-2 min-w-[110px] text-center pointer-events-none">
                 Tuần {selectedWeek.split('-W')[1]}, {selectedWeek.split('-W')[0]}
               </span>
-              <Calendar size={16} className="text-slate-400" />
+              <Calendar size={16} className="text-slate-400 pointer-events-none" />
               <input 
                 type="week" 
                 value={selectedWeek}
@@ -381,12 +436,15 @@ export default function AIFeedback() {
                 <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4 italic">"{review.comment}"</p>
                 
                 <div className="flex gap-2 flex-wrap">
-                  {(review.tags || []).map((tag, idx) => (
-                    <span key={idx} className="text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-md flex items-center gap-1">
-                      <Sparkles size={10} className="text-violet-500" />
-                      {tag}
-                    </span>
-                  ))}
+                  {(review.extractedTags || review.extracted_tag || review.tags || []).map((tag, idx) => {
+                    const tagText = typeof tag === 'object' ? (tag.extractedTag || tag.extracted_tag || tag.tagName) : tag;
+                    return (
+                      <span key={idx} className="text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-md flex items-center gap-1">
+                        <Sparkles size={10} className="text-violet-500" />
+                        {tagText}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -420,6 +478,128 @@ export default function AIFeedback() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* AI Aggregation Floating Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {showAggregator && (
+          <div className="absolute bottom-16 right-0 w-80 md:w-96 bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-500">
+                <Sparkles size={16} />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Tổng hợp phản hồi AI</h4>
+                <p className="text-[11px] text-slate-400">Yêu cầu AI phân tích dữ liệu mới</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex gap-1 mb-4">
+              <button
+                type="button"
+                onClick={() => setAggType('DAY')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  aggType === 'DAY'
+                    ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                Theo Ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => setAggType('WEEK')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  aggType === 'WEEK'
+                    ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                Theo Tuần
+              </button>
+            </div>
+
+            <div className="mb-6">
+              {aggType === 'DAY' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chọn ngày phân tích</label>
+                  <div className="relative">
+                    <input 
+                      type="date"
+                      value={aggDate}
+                      onChange={(e) => setAggDate(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-700 dark:text-slate-300 font-medium"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chọn tuần phân tích</label>
+                  <div className="relative flex items-center justify-between bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus-within:ring-2 focus-within:ring-primary/50 min-h-[42px] cursor-pointer">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 pointer-events-none">
+                      Tuần {aggWeek.split('-W')[1]}, {aggWeek.split('-W')[0]}
+                    </span>
+                    <Calendar size={16} className="text-slate-400 pointer-events-none" />
+                    <input 
+                      type="week"
+                      value={aggWeek}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setAggWeek(e.target.value);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAggregator(false)}
+                disabled={aggregating}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-xs font-bold transition-all disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleAggregate}
+                disabled={aggregating}
+                className="flex-[2] py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md shadow-violet-500/20 text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                {aggregating ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Đang tổng hợp...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    Bắt đầu tổng hợp
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setShowAggregator(!showAggregator)}
+          className={`w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-r from-violet-600 to-primary text-white shadow-lg shadow-violet-500/30 transition-all hover:scale-105 active:scale-95 ${
+            showAggregator ? 'rotate-90 bg-slate-600 dark:bg-slate-700' : ''
+          }`}
+          title="Tổng hợp feedback bằng AI"
+        >
+          {showAggregator ? (
+            <X size={24} className="transition-transform duration-300" />
+          ) : (
+            <Sparkles className={aggregating ? "animate-spin" : ""} size={24} />
+          )}
+        </button>
       </div>
     </div>
   )

@@ -43,8 +43,7 @@ public class Feedback {
 
     @ElementCollection
     @CollectionTable(name = "feedback_tags", joinColumns = @JoinColumn(name = "feedback_id"))
-    @Column(name = "extracted_tags")
-    private List<String> extractedTags;
+    private List<FeedbackTag> extractedTags;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

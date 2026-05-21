@@ -59,11 +59,21 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
     public void analyzeFeedbackAsync(Integer feedbackId, String comment)
     {
         try {
+//            String prompt = "Phân tích bình luận quán Karaoke sau. " +
+//                    "Trả về JSON chính xác với 3 trường: " +
+//                    "'sentiment' (chỉ chọn POSITIVE, NEGATIVE, NEUTRAL), " +
+//                    "'score' (số thập phân 0.0 đến 5.0, 1.0 là rất tiêu cực, 5.0 là rất tích cực), " +
+//                    "'tags' (mảng chuỗi, chứa 1 đến 4 cụm từ cực kỳ ngắn gọn (2-5 chữ) tóm tắt chính xác các vấn đề/lời khen trong câu. VD: 'món ăn ngon', 'phục vụ lâu', 'kẹt máy in', 'phòng hôi'). " +
+//                    "Bình luận: \"" + comment + "\"";
+
             String prompt = "Phân tích bình luận quán Karaoke sau. " +
                     "Trả về JSON chính xác với 3 trường: " +
                     "'sentiment' (chỉ chọn POSITIVE, NEGATIVE, NEUTRAL), " +
                     "'score' (số thập phân 0.0 đến 5.0, 1.0 là rất tiêu cực, 5.0 là rất tích cực), " +
-                    "'tags' (mảng chuỗi, chứa 1 đến 4 cụm từ cực kỳ ngắn gọn (2-5 chữ) tóm tắt chính xác các vấn đề/lời khen trong câu. VD: 'món ăn ngon', 'phục vụ lâu', 'kẹt máy in', 'phòng hôi'). " +
+                    "'tags' (là một mảng các object, mỗi object có 2 trường: 'tagName' và 'extractedTag'). \n" +
+                    "LUẬT CỦA MẢNG TAGS:\n" +
+                    "- 'tagName' CHỈ ĐƯỢC CHỌN 1 trong các giá trị sau: SERVICE (phục vụ, thái độ), FOOD (đồ ăn, thức uống), FACILITIES (vệ sinh, không gian), EQUIPMENT (âm thanh, mic, loa, máy lạnh), PRICE (giá cả), hoặc GENERAL (nhận xét chung). (trả về các từ viết hoa như trên nhé(SERVICE, FOOD, FACILITIES, EQUIPMENT, PRICE, GENERAL))\n" +
+                    "- 'extractedTag' là cụm từ cực kỳ ngắn gọn (2-5 chữ) trích xuất từ câu để mô tả chi tiết. VD: 'phục vụ chậm', 'mic rè', 'phòng hôi'.\n" +
                     "Bình luận: \"" + comment + "\"";
 
             Map<String, Object> requestBody = Map.of(
@@ -98,16 +108,36 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
             String sentimentStr = resultNode.path("sentiment").asText("NEUTRAL");
             double sentimentScore = resultNode.path("score").asDouble(3.0);
 
-            List<String> extractedTags = new ArrayList<>();
+            List<FeedbackTag> extractedTags = new ArrayList<>();
             JsonNode tagsNode = resultNode.path("tags");
             if (tagsNode.isArray())
             {
                 for (JsonNode node : tagsNode)
                 {
-                    String rawTag = node.asText().trim();
+//                    String rawTag = node.asText().trim();
+//                    if (!rawTag.isEmpty()) {
+//                        String formattedTag = rawTag.substring(0, 1).toUpperCase() + rawTag.substring(1).toLowerCase();
+//                        extractedTags.add(formattedTag);
+//                    }
+                    String tName = node.path("tagName").asText("GENERAL");
+                    String rawTag = node.path("extractedTag").asText("").trim();
+
                     if (!rawTag.isEmpty()) {
-                        String formattedTag = rawTag.substring(0, 1).toUpperCase() + rawTag.substring(1).toLowerCase();
-                        extractedTags.add(formattedTag);
+                        String eTag = rawTag.substring(0, 1).toUpperCase() + rawTag.substring(1).toLowerCase();
+
+                        FeedbackTag.SystemTag systemTag;
+                        try {
+                            if (tName.isEmpty()) {
+                                systemTag = FeedbackTag.SystemTag.GENERAL;
+                            } else {
+                                systemTag = FeedbackTag.SystemTag.valueOf(tName);
+                            }
+                        } catch (IllegalArgumentException ex) {
+                            log.warn("AI trả về tag không hợp lệ: {}. Đã chuyển thành GENERAL.", tName);
+                            systemTag = FeedbackTag.SystemTag.GENERAL;
+                        }
+
+                        extractedTags.add(new FeedbackTag(systemTag, eTag));
                     }
                 }
             }
@@ -196,6 +226,7 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
             }
         } catch (Exception e) {
             log.error("Lỗi tổng hợp báo cáo ngày {}: {}", date, e.getMessage());
+            throw new RuntimeException("Lỗi tổng hợp báo cáo ngày: " + e.getMessage(), e);
         }
     }
 
@@ -210,7 +241,9 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
         int reportYear = dateInWeek.get(weekFields.weekBasedYear());
 
         List<Feedback> weeklyFeedbacks = feedbackRepository.findByCreatedAtBetween(startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
-        if (weeklyFeedbacks.isEmpty()) return;
+        if (weeklyFeedbacks.isEmpty()) {
+            throw new IllegalArgumentException("Không có phản hồi nào trong tuần này để tổng hợp.");
+        }
 
         int total = weeklyFeedbacks.size();
         double avgRating = weeklyFeedbacks.stream().mapToDouble(f -> f.getRating() != null ? f.getRating() : 0.0).average().orElse(0.0);
@@ -272,6 +305,7 @@ public class AiIntegrationServiceImpl implements AiIntegrationService
             throw e;
         } catch (Exception e) {
             log.error("Lỗi tạo báo cáo tuần: {}", e.getMessage());
+            throw new RuntimeException("Lỗi tạo báo cáo tuần: " + e.getMessage(), e);
         }
     }
 

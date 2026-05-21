@@ -53,7 +53,7 @@ public class Account {
     @Column(name = "totp_secret_key", length = 64)
     private String totpSecretKey;
 
-    @Column(name = "is_2fa_enabled", nullable = false)
+    @Column(name = "is_2fa_enabled", nullable = false, columnDefinition = "BIT(1) DEFAULT 0")
     private Boolean twoFactorEnabled = false;
 
     public enum Role {
@@ -62,5 +62,12 @@ public class Account {
 
     public enum AccountStatus {
         ACTIVE, INACTIVE
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.twoFactorEnabled == null) {
+            this.twoFactorEnabled = false;
+        }
     }
 }

@@ -26,7 +26,8 @@ import {
   Award,
   DollarSign,
   ClipboardList,
-  ShieldCheck
+  ShieldCheck,
+  Key
 } from 'lucide-react'
 
 export default function DashboardLayout() {
@@ -51,6 +52,8 @@ export default function DashboardLayout() {
       { path: '/settings', icon: DollarSign, label: 'Giá phòng', roles: ['ADMIN'] },
       { path: '/customers', icon: Contact, label: 'Khách hàng', roles: ['ADMIN', 'MANAGER', 'RECEPTIONIST'] },
       { path: '/invoices', icon: Receipt, label: 'Hóa đơn', roles: ['ADMIN', 'MANAGER', 'RECEPTIONIST'] },
+      { path: '/invoices/security', icon: ShieldCheck, label: 'Bảo mật HĐ', roles: ['ADMIN', 'MANAGER'] },
+      { path: '/security/keys', icon: Key, label: 'Quản lý Khóa', roles: ['ADMIN', 'MANAGER'] },
       { path: '/products', icon: Package, label: 'Kho hàng', roles: ['ADMIN', 'MANAGER', 'STAFF'] },
       { path: '/employees', icon: Users, label: 'Nhân sự', roles: ['ADMIN', 'MANAGER'] },
       { path: '/accounts', icon: ShieldCheck, label: 'Tài khoản', roles: ['ADMIN'] },

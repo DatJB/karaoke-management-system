@@ -1,4 +1,4 @@
-package com.karaoke.backend.service;
+package com.karaoke.backend.security.service;
 
 public interface TwoFactorService
 {
