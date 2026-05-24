@@ -93,10 +93,11 @@ npm run dev
 
 # Security & Usecase 4 Defense
 
-Hệ thống được thiết kế theo mô hình **Zero Trust** và tích hợp các cơ chế bảo mật nâng cao để phòng chống tấn công nội bộ (Usecase 4 - Nhân viên trộm danh sách khách hàng VIP):
+Hệ thống được thiết kế theo mô hình **Zero Trust** và tích hợp các cơ chế bảo mật nâng cao để phòng chống tấn công nội bộ:
 - **Mã hóa HTTPS (SSL/TLS):** Bảo vệ đường truyền nội bộ khỏi hành vi nghe lén (Sniffing/Wireshark).
-- **Cloudflare Tunnel (Outbound connection):** Định tuyến lưu lượng an toàn mà không cần mở port modem (Port Forwarding), ẩn giấu Public IP thực của máy chủ.
+- **Cloudflare Tunnel:** Định tuyến lưu lượng an toàn mà không cần mở port modem (Port Forwarding), ẩn giấu Public IP thực của máy chủ.
 - **Cloudflare WAF / Rate Limiting:** Chặn đứng các hành vi cào dữ liệu tự động (Web Scraping/Bot) ngay tại Edge Server.
+- **Thuật toán mã hóa chuyên sâu:** Chặn đứng các hành vi sửa đổi DB nhằm biển thủ tài sản.
 
 ---
 
@@ -154,30 +155,10 @@ Nếu bạn muốn cấu hình chạy tên miền riêng qua Cloudflare Tunnel:
 
 ---
 
-## 3. Quy trình 5 bước chạy thử nghiệm thực tế (Mô phỏng tấn công)
+# Quick Start
 
-Mở các terminal khác nhau và thực hiện theo thứ tự:
+Backend:
+mvn spring-boot:run
 
-1. **Khởi động Database:**
-   ```bash
-   docker start kara-db
-   ```
-2. **Khởi động Backend Spring Boot:**
-   ```bash
-   cd backend && ./mvnw spring-boot:run
-   ```
-3. **Khởi động Frontend React:**
-   ```bash
-   cd frontend && npm run dev
-   ```
-4. **Chạy Tunnel (Nếu dùng tên miền):**
-   ```bash
-   cloudflared tunnel run <ten-tunnel>
-   ```
-5. **Chạy Script test cào dữ liệu (Usecase 4):**
-   Mở file `test-rate-limit.py` ở thư mục gốc, cập nhật biến `BASE_URL` trỏ về API của bạn (localhost hoặc domain Cloudflare) rồi chạy lệnh:
-   ```bash
-   python3 test-rate-limit.py
-   ```
-   *Kết quả:* Script đăng nhập thành công và spam 15 request liên tục. 10 request đầu tiên lấy dữ liệu thành công (`200 OK`), các request sau bị chặn đứng và trả về lỗi `429 Too Many Requests`.
-
+Frontend:
+npm run dev
